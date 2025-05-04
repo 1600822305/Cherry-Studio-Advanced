@@ -23,6 +23,41 @@ interface Props {
 }
 
 const MessageThought: FC<Props> = ({ message }) => {
+  // 直接检查是否存在<think>标签
+  const thinkPattern = /<think>([\s\S]*?)<\/think>/i
+  const origContent = message.content || ''
+
+  // 如果在消息内容中发现思考标签，直接提取
+  if (!message.reasoning_content && thinkPattern.test(origContent)) {
+    const thinkMatch = origContent.match(thinkPattern)
+    if (thinkMatch) {
+      message = {
+        ...message,
+        reasoning_content: thinkMatch[1].trim(),
+        content: origContent.replace(thinkPattern, '').trim()
+      }
+      console.log('[MessageThought] 直接从消息内容中提取思考过程')
+
+      // 存储更新后的消息到全局状态，避免重复显示
+      if (message.topicId && message.id) {
+        // 使用setTimeout确保UI不阻塞
+        setTimeout(() => {
+          try {
+            window.api.store.dispatch(
+              window.api.store.updateMessageThunk(message.topicId, message.id, {
+                content: origContent.replace(thinkPattern, '').trim(),
+                reasoning_content: thinkMatch[1].trim()
+              })
+            )
+            console.log('[MessageThought] 已更新全局状态，避免内容重复')
+          } catch (error) {
+            console.error('[MessageThought] 更新全局状态失败:', error)
+          }
+        }, 0)
+      }
+    }
+  }
+
   const [activeKey, setActiveKey] = useState<'thought' | ''>('thought')
   const [copied, setCopied] = useState(false)
   const isThinking = !message.content

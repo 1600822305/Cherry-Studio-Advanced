@@ -1,5 +1,5 @@
-import styled from 'styled-components'
 import { motion } from 'framer-motion'
+import styled from 'styled-components'
 
 // 主容器
 export const AnimatedTabsContainer = styled.div`
@@ -40,21 +40,17 @@ export const TabItem = styled(motion.div)<{ $isActive: boolean }>`
   border-radius: 8px 8px 0 0;
   cursor: pointer;
   position: relative;
-  background-color: ${({ $isActive }) =>
-    $isActive ? 'var(--color-bg-2)' : 'transparent'};
-  color: ${({ $isActive }) =>
-    $isActive ? 'var(--color-text-1)' : 'var(--color-text-2)'};
+  background-color: ${({ $isActive }) => ($isActive ? 'var(--color-bg-2)' : 'transparent')};
+  color: ${({ $isActive }) => ($isActive ? 'var(--color-text-1)' : 'var(--color-text-2)')};
   font-weight: ${({ $isActive }) => ($isActive ? '500' : 'normal')};
   transition: all 0.2s ease;
   min-width: 120px;
   max-width: 240px;
   flex-shrink: 0;
-  border-bottom: ${({ $isActive }) =>
-    $isActive ? '2px solid var(--color-primary)' : 'none'};
+  border-bottom: ${({ $isActive }) => ($isActive ? '2px solid var(--color-primary)' : 'none')};
 
   &:hover {
-    background-color: ${({ $isActive }) =>
-      $isActive ? 'var(--color-bg-2)' : 'var(--color-bg-3)'};
+    background-color: ${({ $isActive }) => ($isActive ? 'var(--color-bg-2)' : 'var(--color-bg-3)')};
   }
 
   &.dragging {

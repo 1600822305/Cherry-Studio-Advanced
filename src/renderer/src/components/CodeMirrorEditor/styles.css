@@ -283,3 +283,145 @@
 .cm-panel.cm-search label[for="word"]::after {
   content: '全词匹配';
 }
+
+/* 添加自定义主题样式，确保针对不同代码风格的样式能被正确应用 */
+
+/* Ayu Dark 主题 */
+.ayu-dark-theme .cm-editor {
+  background-color: #0F1419;
+  color: #E6E1CF;
+}
+.ayu-dark-theme .cm-gutters {
+  background-color: #0F1419;
+  color: #5C6773;
+  border-right: 1px solid #5C677333;
+}
+.ayu-dark-theme .cm-activeLineGutter {
+  background-color: #E6E1CF0F;
+}
+.ayu-dark-theme .cm-cursor {
+  border-left-color: #E6E1CF;
+}
+.ayu-dark-theme .cm-selectionBackground {
+  background-color: #E6E1CF33;
+}
+
+/* Andromeda 主题 */
+.andromeda-theme .cm-editor {
+  background-color: #23262E;
+  color: #D5CED9;
+}
+.andromeda-theme .cm-gutters {
+  background-color: #23262E;
+  color: #6C6F93;
+  border-right: 1px solid #6C6F9333;
+}
+.andromeda-theme .cm-activeLineGutter {
+  background-color: #D5CED90F;
+}
+.andromeda-theme .cm-cursor {
+  border-left-color: #D5CED9;
+}
+.andromeda-theme .cm-selectionBackground {
+  background-color: #D5CED933;
+}
+
+/* Aurora X 主题 */
+.aurora-x-theme .cm-editor {
+  background-color: #011627;
+  color: #D6DEEB;
+}
+.aurora-x-theme .cm-gutters {
+  background-color: #011627;
+  color: #637777;
+  border-right: 1px solid #63777733;
+}
+.aurora-x-theme .cm-activeLineGutter {
+  background-color: #D6DEEB0F;
+}
+.aurora-x-theme .cm-cursor {
+  border-left-color: #D6DEEB;
+}
+.aurora-x-theme .cm-selectionBackground {
+  background-color: #D6DEEB33;
+}
+
+/* Catppuccin Frappe 主题 */
+.catppuccin-frappe-theme .cm-editor {
+  background-color: #303446;
+  color: #C6D0F5;
+}
+.catppuccin-frappe-theme .cm-gutters {
+  background-color: #303446;
+  color: #838BA7;
+  border-right: 1px solid #838BA733;
+}
+.catppuccin-frappe-theme .cm-activeLineGutter {
+  background-color: #C6D0F50F;
+}
+.catppuccin-frappe-theme .cm-cursor {
+  border-left-color: #C6D0F5;
+}
+.catppuccin-frappe-theme .cm-selectionBackground {
+  background-color: #C6D0F533;
+}
+
+/* Catppuccin Macchiato 主题 */
+.catppuccin-macchiato-theme .cm-editor {
+  background-color: #24273A;
+  color: #CAD3F5;
+}
+.catppuccin-macchiato-theme .cm-gutters {
+  background-color: #24273A;
+  color: #8087A2;
+  border-right: 1px solid #8087A233;
+}
+.catppuccin-macchiato-theme .cm-activeLineGutter {
+  background-color: #CAD3F50F;
+}
+.catppuccin-macchiato-theme .cm-cursor {
+  border-left-color: #CAD3F5;
+}
+.catppuccin-macchiato-theme .cm-selectionBackground {
+  background-color: #CAD3F533;
+}
+
+/* Catppuccin Mocha 主题 */
+.catppuccin-mocha-theme .cm-editor {
+  background-color: #1E1E2E;
+  color: #CDD6F4;
+}
+.catppuccin-mocha-theme .cm-gutters {
+  background-color: #1E1E2E;
+  color: #7F849C;
+  border-right: 1px solid #7F849C33;
+}
+.catppuccin-mocha-theme .cm-activeLineGutter {
+  background-color: #CDD6F40F;
+}
+.catppuccin-mocha-theme .cm-cursor {
+  border-left-color: #CDD6F4;
+}
+.catppuccin-mocha-theme .cm-selectionBackground {
+  background-color: #CDD6F433;
+}
+
+/* Catppuccin Latte 主题（亮色） */
+.catppuccin-latte-theme .cm-editor {
+  background-color: #EFF1F5;
+  color: #4C4F69;
+}
+.catppuccin-latte-theme .cm-gutters {
+  background-color: #EFF1F5;
+  color: #ACB0BE;
+  border-right: 1px solid #ACB0BE33;
+}
+.catppuccin-latte-theme .cm-activeLineGutter {
+  background-color: #4C4F690F;
+}
+.catppuccin-latte-theme .cm-cursor {
+  border-left-color: #4C4F69;
+}
+.catppuccin-latte-theme .cm-selectionBackground {
+  background-color: #4C4F6933;
+}

@@ -337,7 +337,7 @@ export default class OpenAIProvider extends BaseProvider {
     }
     if (mcpTools && mcpTools.length > 0) {
       // 获取是否使用提示词调用工具的设置
-      const usePromptForToolCalling = store.getState().settings.usePromptForToolCalling
+      const usePromptForToolCalling = store.getState().settings.useOpenAIPromptForToolCalling
 
       if (usePromptForToolCalling) {
         // 使用提示词调用工具

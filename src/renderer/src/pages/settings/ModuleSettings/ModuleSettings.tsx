@@ -1,8 +1,17 @@
-import { DeleteOutlined, DownloadOutlined, PlusOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  SettingOutlined,
+  SyncOutlined
+} from '@ant-design/icons'
 import { useTheme } from '@renderer/context/ThemeProvider'
 import { NpmModule, useModuleRegistry } from '@renderer/services/ModuleRegistryManager'
 import { parsePluginFile } from '@renderer/services/PluginFileService'
-import { usePluginSystem } from '@renderer/services/PluginSystem'
+import { removePlugin, usePluginSystem } from '@renderer/services/PluginSystem'
+import { useAppDispatch } from '@renderer/store'
 import { Plugin } from '@renderer/types/plugin'
 import { Button, Card, Empty, Input, List, message, Spin, Switch, Tabs, Tag, Tooltip } from 'antd'
 import { FC, useCallback, useEffect, useState } from 'react'
@@ -26,6 +35,7 @@ const ModuleSettings: FC = () => {
   const [loading, setLoading] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
 
   // 使用插件系统
   const {
@@ -38,7 +48,9 @@ const ModuleSettings: FC = () => {
     deactivatePlugin,
     uninstallPlugin,
     initializePluginSystem,
-    registerPlugin
+    registerPlugin,
+    resetPluginSystem,
+    refreshPlugin
   } = usePluginSystem()
 
   // 使用模块注册表服务（用于搜索NPM模块）
@@ -189,6 +201,7 @@ const ModuleSettings: FC = () => {
   // 处理卸载插件
   const handleUninstallPlugin = async (pluginId: string) => {
     try {
+      setLoading(true)
       const success = await uninstallPlugin(pluginId)
       if (success) {
         messageApi.success(`插件 ${pluginId} 卸载成功`)
@@ -198,6 +211,114 @@ const ModuleSettings: FC = () => {
     } catch (error) {
       console.error(`Failed to uninstall plugin ${pluginId}:`, error)
       messageApi.error(`插件 ${pluginId} 卸载失败`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 处理移除未安装的插件
+  const handleRemovePlugin = async (pluginId: string) => {
+    try {
+      setLoading(true)
+
+      // 直接从Redux状态中移除插件
+      dispatch(removePlugin(pluginId))
+
+      // 从localStorage中移除插件相关的所有数据
+      // 1. 从plugins列表中移除
+      const storedPluginsJson = localStorage.getItem('plugins') || '[]'
+      const storedPlugins = JSON.parse(storedPluginsJson)
+      const filteredPlugins = storedPlugins.filter((plugin: any) => plugin.id !== pluginId)
+      localStorage.setItem('plugins', JSON.stringify(filteredPlugins))
+
+      // 2. 从activatedPlugins中移除
+      const activatedPluginsJson = localStorage.getItem('activatedPlugins') || '[]'
+      let activatedPlugins = JSON.parse(activatedPluginsJson)
+      if (Array.isArray(activatedPlugins) && activatedPlugins.includes(pluginId)) {
+        activatedPlugins = activatedPlugins.filter((id: string) => id !== pluginId)
+        localStorage.setItem('activatedPlugins', JSON.stringify(activatedPlugins))
+      }
+
+      // 3. 移除插件设置
+      localStorage.removeItem(`plugin_settings_${pluginId}`)
+
+      // 4. 移除任何包含该插件ID的localStorage项
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (
+          key &&
+          (key.includes(pluginId) ||
+            key.includes(`plugin_${pluginId}`) ||
+            key.includes(`${pluginId}_`) ||
+            key.includes(`_${pluginId}`))
+        ) {
+          keysToRemove.push(key)
+        }
+      }
+
+      // 删除收集到的键
+      keysToRemove.forEach((key) => localStorage.removeItem(key))
+
+      // 5. 特殊处理：添加到黑名单，防止内置插件自动加载
+      // 获取或创建插件黑名单
+      const blacklistJson = localStorage.getItem('plugin_blacklist') || '[]'
+      let blacklist = JSON.parse(blacklistJson)
+      if (!Array.isArray(blacklist)) {
+        blacklist = []
+      }
+
+      // 添加到黑名单
+      if (!blacklist.includes(pluginId)) {
+        blacklist.push(pluginId)
+        localStorage.setItem('plugin_blacklist', JSON.stringify(blacklist))
+      }
+
+      messageApi.success(`插件 ${pluginId} 已从列表中移除并加入黑名单`)
+
+      // 重置插件系统以应用更改
+      await resetPluginSystem()
+    } catch (error) {
+      console.error(`Failed to remove plugin ${pluginId}:`, error)
+      messageApi.error(`移除插件 ${pluginId} 失败`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 处理重置插件系统
+  const handleResetPluginSystem = async () => {
+    try {
+      setLoading(true)
+      const success = await resetPluginSystem()
+      if (success) {
+        messageApi.success('插件系统已重置')
+      } else {
+        messageApi.error('插件系统重置失败')
+      }
+    } catch (error) {
+      console.error('重置插件系统失败:', error)
+      messageApi.error('重置插件系统失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 处理刷新插件
+  const handleRefreshPlugin = async (pluginId: string) => {
+    try {
+      setLoading(true)
+      const success = await refreshPlugin(pluginId)
+      if (success) {
+        messageApi.success(`插件 ${pluginId} 刷新成功`)
+      } else {
+        messageApi.error(`插件 ${pluginId} 刷新失败`)
+      }
+    } catch (error) {
+      console.error(`刷新插件失败: ${pluginId}`, error)
+      messageApi.error(`刷新插件失败: ${pluginId}`)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -305,8 +426,12 @@ const ModuleSettings: FC = () => {
                 icon={<PlusOutlined />}
                 type="primary"
                 onClick={() => setIsAddPluginModalVisible(true)}
-                loading={loading}>
+                loading={loading}
+                style={{ marginRight: 8 }}>
                 添加插件
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={handleResetPluginSystem} loading={loading} danger>
+                重置插件系统
               </Button>
             </ActionBar>
 
@@ -358,21 +483,35 @@ const ModuleSettings: FC = () => {
                       {/* 插件操作按钮 */}
                       <PluginActions>
                         {!plugin.state.isInstalled ? (
-                          <Button
-                            type="primary"
-                            icon={<DownloadOutlined />}
-                            loading={downloading[plugin.id]}
-                            onClick={() => handleAddPlugin(plugin.id)}>
-                            安装插件
-                          </Button>
+                          <>
+                            <Button
+                              type="primary"
+                              icon={<DownloadOutlined />}
+                              loading={downloading[plugin.id]}
+                              onClick={() => handleAddPlugin(plugin.id)}
+                              style={{ marginRight: 8 }}>
+                              安装插件
+                            </Button>
+                            <Button icon={<DeleteOutlined />} onClick={() => handleRemovePlugin(plugin.id)} danger>
+                              移除插件
+                            </Button>
+                          </>
                         ) : (
-                          <Button
-                            icon={<DeleteOutlined />}
-                            onClick={() => handleUninstallPlugin(plugin.id)}
-                            disabled={plugin.state.isActive}
-                            danger>
-                            卸载插件
-                          </Button>
+                          <>
+                            <Button
+                              icon={<SyncOutlined />}
+                              onClick={() => handleRefreshPlugin(plugin.id)}
+                              style={{ marginRight: 8 }}>
+                              刷新插件
+                            </Button>
+                            <Button
+                              icon={<DeleteOutlined />}
+                              onClick={() => handleUninstallPlugin(plugin.id)}
+                              disabled={plugin.state.isActive}
+                              danger>
+                              卸载插件
+                            </Button>
+                          </>
                         )}
                       </PluginActions>
                     </ModulesList>
@@ -416,7 +555,7 @@ const ModuleSettings: FC = () => {
                             }}
                             disabled={!module.isInstalled}
                           />
-                          <Button icon={<DeleteOutlined />} onClick={() => { }} disabled={module.isActive} danger>
+                          <Button icon={<DeleteOutlined />} onClick={() => {}} disabled={module.isActive} danger>
                             {t('settings.modules.uninstall')}
                           </Button>
                         </>
@@ -425,7 +564,7 @@ const ModuleSettings: FC = () => {
                           type="primary"
                           icon={<DownloadOutlined />}
                           loading={downloading[module.id]}
-                          onClick={() => { }}>
+                          onClick={() => {}}>
                           {t('settings.modules.install')}
                         </Button>
                       )}
@@ -473,13 +612,19 @@ const ModuleSettings: FC = () => {
                           </Button>
                         </>
                       ) : (
-                        <Button
-                          type="primary"
-                          icon={<DownloadOutlined />}
-                          loading={downloading[plugin.id]}
-                          onClick={() => handleAddPlugin(plugin.id)}>
-                          安装
-                        </Button>
+                        <>
+                          <Button
+                            type="primary"
+                            icon={<DownloadOutlined />}
+                            loading={downloading[plugin.id]}
+                            onClick={() => handleAddPlugin(plugin.id)}
+                            style={{ marginRight: 8 }}>
+                            安装
+                          </Button>
+                          <Button icon={<DeleteOutlined />} onClick={() => handleRemovePlugin(plugin.id)} danger>
+                            移除
+                          </Button>
+                        </>
                       )}
                     </ModuleActions>
                   </ModuleListItem>
@@ -667,7 +812,7 @@ style.textContent = `
     70% { box-shadow: 0 0 0 10px rgba(24, 144, 255, 0); }
     100% { box-shadow: 0 0 0 0 rgba(24, 144, 255, 0); }
   }
-  
+
   .highlight-plugin {
     animation: highlight-pulse 1.5s infinite;
     border: 2px solid #1890ff !important;

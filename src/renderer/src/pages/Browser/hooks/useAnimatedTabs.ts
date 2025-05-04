@@ -16,8 +16,16 @@ export const useAnimatedTabs = () => {
   // 动画相关状态
   const [animationDirection, setAnimationDirection] = useState(0) // 1: 向右, -1: 向左, 0: 无动画
 
-  // 链接打开方式状态
-  const [linkOpenMode, setLinkOpenMode] = useState<'newTab' | 'newWindow'>('newTab')
+  // 链接打开方式状态 - 从localStorage加载或使用默认值
+  const [linkOpenMode, setLinkOpenMode] = useState<'newTab' | 'newWindow'>(() => {
+    try {
+      const savedMode = localStorage.getItem('browser_link_open_mode')
+      return savedMode === 'newTab' || savedMode === 'newWindow' ? savedMode : 'newTab'
+    } catch (error) {
+      console.error('Failed to load link open mode from storage:', error)
+      return 'newTab'
+    }
+  })
 
   // 更新选项卡信息
   const updateTabInfo = useCallback(
@@ -182,7 +190,17 @@ export const useAnimatedTabs = () => {
 
   // 切换链接打开方式
   const toggleLinkOpenMode = useCallback(() => {
-    setLinkOpenMode((prevMode) => (prevMode === 'newTab' ? 'newWindow' : 'newTab'))
+    setLinkOpenMode((prevMode) => {
+      const newMode = prevMode === 'newTab' ? 'newWindow' : 'newTab'
+      try {
+        // 保存新的设置到localStorage
+        localStorage.setItem('browser_link_open_mode', newMode)
+        console.log(`[Browser] 链接打开方式已切换为: ${newMode}`)
+      } catch (error) {
+        console.error('Failed to save link open mode to storage:', error)
+      }
+      return newMode
+    })
   }, [])
 
   // 在组件挂载和卸载时处理webview会话
@@ -190,8 +208,14 @@ export const useAnimatedTabs = () => {
     // 组件卸载时保存状态
     return () => {
       saveTabsToStorage(tabs, activeTabId)
+      // 确保保存链接打开方式设置
+      try {
+        localStorage.setItem('browser_link_open_mode', linkOpenMode)
+      } catch (error) {
+        console.error('Failed to save link open mode on unmount:', error)
+      }
     }
-  }, [tabs, activeTabId])
+  }, [tabs, activeTabId, linkOpenMode])
 
   return {
     tabs,

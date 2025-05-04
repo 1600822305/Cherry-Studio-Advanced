@@ -1,7 +1,7 @@
 import { InboxOutlined } from '@ant-design/icons'
 import { Button, Form, Input, message, Modal, Tabs, Upload } from 'antd'
 import type { UploadFile } from 'antd/es/upload/interface'
-import React, { FC, useState } from 'react'
+import { FC, useState } from 'react'
 
 const { TabPane } = Tabs
 const { Dragger } = Upload

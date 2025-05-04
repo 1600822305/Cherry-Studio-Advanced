@@ -1,17 +1,18 @@
 import './services/MemoryFileService'
 
-import fs from 'node:fs'
-import { arch } from 'node:os'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import { join } from 'node:path'
 
+import { titleBarOverlayDark, titleBarOverlayLight } from '@main/config'
 import { isMac, isWin } from '@main/constant'
 import { getBinaryPath, isBinaryExists, runInstallScript } from '@main/utils/process'
 import { IpcChannel } from '@shared/IpcChannel'
-import { MCPServer, Shortcut, ThemeMode } from '@types' // Import MCPServer here
+import { MCPServer, Shortcut, ThemeMode } from '@types'
 import { BrowserWindow, ipcMain, nativeTheme, session, shell, webContents } from 'electron'
 import log from 'electron-log'
+import fs from 'fs'
 
-import { titleBarOverlayDark, titleBarOverlayLight } from './config'
 import AppUpdater from './services/AppUpdater'
 import { asrServerService } from './services/ASRServerService'
 import BackupManager from './services/BackupManager'
@@ -38,6 +39,7 @@ import { windowService } from './services/WindowService'
 import WorkspaceService from './services/WorkspaceService'
 import { getResourcePath } from './utils'
 import { decrypt, encrypt } from './utils/aes'
+import { extractCrxFile } from './utils/crxExtractor'
 import { getConfigDir, getFilesDir } from './utils/file'
 import { compress, decompress } from './utils/zip'
 
@@ -45,6 +47,59 @@ const fileManager = new FileStorage()
 const backupManager = new BackupManager()
 const exportService = new ExportService(fileManager)
 const obsidianVaultService = new ObsidianVaultService()
+
+// 基于时间的主题设置
+function isNightTime() {
+  const now = new Date()
+  const hours = now.getHours()
+  // 默认晚上7点到早上7点为夜间
+  return hours >= 19 || hours < 7
+}
+
+function setupTimeBasedTheme(mainWindow: BrowserWindow) {
+  const updateTimeBasedTheme = () => {
+    const shouldUseDarkColors = isNightTime()
+    const windows = BrowserWindow.getAllWindows()
+    windows.forEach((win) =>
+      win.webContents.send(IpcChannel.ThemeChange, shouldUseDarkColors ? ThemeMode.dark : ThemeMode.light)
+    )
+    mainWindow.setTitleBarOverlay(shouldUseDarkColors ? titleBarOverlayDark : titleBarOverlayLight)
+  }
+
+  updateTimeBasedTheme()
+
+  // 计算下一次主题切换的时间（早7点或晚7点）
+  const scheduleNextUpdate = () => {
+    const now = new Date()
+    const hours = now.getHours()
+
+    let nextChangeHour
+    if (hours >= 19 || hours < 7) {
+      // 如果现在是晚上，下次切换是早上7点
+      nextChangeHour = 7
+    } else {
+      // 如果现在是白天，下次切换是晚上7点
+      nextChangeHour = 19
+    }
+
+    const nextChange = new Date()
+    nextChange.setHours(nextChangeHour, 0, 0, 0)
+
+    // 如果设置的时间已经过了，加一天
+    if (nextChange <= now) {
+      nextChange.setDate(nextChange.getDate() + 1)
+    }
+
+    const timeUntilNextChange = nextChange.getTime() - now.getTime()
+
+    setTimeout(() => {
+      updateTimeBasedTheme()
+      scheduleNextUpdate()
+    }, timeUntilNextChange)
+  }
+
+  scheduleNextUpdate()
+}
 
 export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   const appUpdater = new AppUpdater(mainWindow)
@@ -58,7 +113,7 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
     appDataPath: app.getPath('userData'),
     resourcesPath: getResourcePath(),
     logsPath: log.transports.file.getFile().path,
-    arch: arch()
+    arch: os.arch()
   }))
 
   ipcMain.handle(IpcChannel.App_Proxy, async (_, proxy: string) => {
@@ -141,6 +196,11 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
     if (theme === ThemeMode.auto) {
       nativeTheme.themeSource = 'system'
       nativeTheme.on('updated', notifyThemeChange)
+    } else if (theme === ThemeMode.timeBasedAuto) {
+      // 移除系统主题监听
+      nativeTheme.removeAllListeners('updated')
+      // 设置为基于时间的主题
+      setupTimeBasedTheme(mainWindow)
     } else {
       nativeTheme.themeSource = theme
       nativeTheme.removeAllListeners('updated')
@@ -290,6 +350,7 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   ipcMain.handle(IpcChannel.File_Write, fileManager.writeFile)
   ipcMain.handle(IpcChannel.File_SaveImage, fileManager.saveImage)
   ipcMain.handle(IpcChannel.File_Base64Image, fileManager.base64Image)
+  ipcMain.handle(IpcChannel.File_Base64File, fileManager.base64File)
   ipcMain.handle(IpcChannel.File_Download, fileManager.downloadFile)
   ipcMain.handle(IpcChannel.File_Copy, fileManager.copyFile)
   ipcMain.handle(IpcChannel.File_BinaryFile, fileManager.binaryFile)
@@ -339,7 +400,82 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
     })
   })
 
-  // 同步cookie
+  // 浏览器标签页管理相关
+  ipcMain.handle('browser:switchTab', async (_, tabIndex: number) => {
+    try {
+      log.info('Switching to tab:', tabIndex)
+      // 向渲染进程发送切换标签页的消息
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('browser:switchTabRequested', tabIndex)
+        return { success: true }
+      }
+      return { success: false, error: 'Main window not available' }
+    } catch (error: any) {
+      log.error('Error switching tab:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('browser:listTabs', async (_) => {
+    try {
+      log.info('Listing browser tabs')
+      // 向渲染进程发送请求标签页列表的消息，并等待回复
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        return new Promise((resolve) => {
+          // 一次性事件监听器，接收渲染进程返回的标签页列表
+          ipcMain.once('browser:tabsListResponse', (_, response) => {
+            resolve(response)
+          })
+
+          // 请求标签页列表
+          mainWindow.webContents.send('browser:listTabsRequested')
+        })
+      }
+      return { success: false, error: 'Main window not available' }
+    } catch (error: any) {
+      log.error('Error listing tabs:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('browser:closeTab', async (_, tabIndex: number) => {
+    try {
+      log.info('Closing tab:', tabIndex)
+      // 向渲染进程发送关闭标签页的消息
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('browser:closeTabRequested', tabIndex)
+        return { success: true }
+      }
+      return { success: false, error: 'Main window not available' }
+    } catch (error: any) {
+      log.error('Error closing tab:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle('browser:createTab', async (_, args: { url: string; title?: string }) => {
+    try {
+      log.info('Creating new tab with:', args)
+      // 向渲染进程发送创建标签页的消息
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        return new Promise((resolve) => {
+          // 一次性事件监听器，接收渲染进程返回的新标签页信息
+          ipcMain.once('browser:createTabResponse', (_, response) => {
+            resolve(response)
+          })
+
+          // 发送创建标签页请求
+          mainWindow.webContents.send('browser:createTabRequested', args)
+        })
+      }
+      return { success: false, error: 'Main window not available' }
+    } catch (error: any) {
+      log.error('Error creating tab:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 浏览器会话设置
   ipcMain.handle('browser:syncCookies', async () => {
     try {
       // 获取浏览器会话
@@ -354,6 +490,250 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
     } catch (error: any) {
       log.error('[Cookie Sync] Error syncing cookies:', error)
       return { success: false, message: `Error: ${error.message}` }
+    }
+  })
+
+  // 添加login事件处理程序，处理HTTP基本认证和NTLM认证
+  ipcMain.handle('browser:setupAuthHandler', async () => {
+    try {
+      const browserSession = session.fromPartition('persist:browser')
+
+      // 移除现有的login事件处理程序，以避免重复添加
+      browserSession.removeAllListeners('login')
+
+      // 不再添加自定义的login事件处理，让浏览器自己处理认证
+      // 设置默认行为，允许浏览器显示内置的身份验证对话框
+
+      log.info('Authentication handler setup: using browser default authentication dialog')
+
+      return { success: true, message: 'Authentication handler setup complete' }
+    } catch (error: any) {
+      log.error('Failed to setup authentication handler:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 获取已安装的扩展
+  ipcMain.handle('browser:getExtensions', async () => {
+    try {
+      const browserSession = session.fromPartition('persist:browser')
+      const extensions = browserSession.getAllExtensions()
+      return { success: true, extensions }
+    } catch (error: any) {
+      log.error('获取扩展列表失败:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 安装扩展
+  ipcMain.handle('browser:installExtension', async (_, extPath: string) => {
+    try {
+      const browserSession = session.fromPartition('persist:browser')
+
+      // 检查是否是CRX文件
+      const isCrxFile = extPath.toLowerCase().endsWith('.crx')
+      let finalExtPath = extPath
+
+      if (isCrxFile) {
+        // 如果是CRX文件，先解压
+        log.info('检测到CRX文件，正在解压...')
+        finalExtPath = await extractCrxFile(extPath)
+      }
+
+      // 加载扩展
+      const extension = await browserSession.loadExtension(finalExtPath)
+
+      // 如果不是CRX文件，需要复制到扩展目录以便持久化
+      if (!isCrxFile) {
+        const extensionsDir = path.join(app.getPath('userData'), 'extensions')
+        const extDir = path.join(extensionsDir, extension.id)
+
+        // 如果目录已存在，先删除
+        if (fs.existsSync(extDir)) {
+          fs.rmSync(extDir, { recursive: true, force: true })
+        }
+
+        // 复制扩展文件
+        fs.cpSync(finalExtPath, extDir, { recursive: true })
+      }
+
+      return { success: true, extension }
+    } catch (error: any) {
+      log.error('安装扩展失败:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 安装CRX文件
+  ipcMain.handle('browser:installCrxExtension', async (_, crxFilePath: string) => {
+    try {
+      // 添加更严格的输入验证
+      if (!crxFilePath || typeof crxFilePath !== 'string') {
+        return { success: false, error: '无效的文件路径' }
+      }
+
+      if (!crxFilePath.toLowerCase().endsWith('.crx')) {
+        return { success: false, error: '不是有效的CRX文件' }
+      }
+
+      // 检查文件是否存在
+      if (!fs.existsSync(crxFilePath)) {
+        return { success: false, error: '文件不存在' }
+      }
+
+      // 解压CRX文件
+      const extractedPath = await extractCrxFile(crxFilePath)
+
+      // 加载扩展
+      const browserSession = session.fromPartition('persist:browser')
+      const extension = await browserSession.loadExtension(extractedPath)
+
+      return { success: true, extension }
+    } catch (error: any) {
+      log.error('安装CRX扩展失败:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 安装Base64编码的CRX文件
+  ipcMain.handle('browser:installBase64CrxExtension', async (_, fileName: string, base64Data: string) => {
+    try {
+      // 检查参数是否有效
+      if (!fileName || typeof fileName !== 'string') {
+        return { success: false, error: '无效的文件名' }
+      }
+
+      if (!base64Data || typeof base64Data !== 'string') {
+        return { success: false, error: '无效的文件数据' }
+      }
+
+      // 创建临时目录
+      const tempDir = path.join(app.getPath('temp'), 'cherry_crx_temp')
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true })
+      }
+
+      // 创建临时文件路径
+      const tempFilePath = path.join(tempDir, fileName)
+
+      // 解码base64数据并写入临时文件
+      const fileData = Buffer.from(base64Data, 'base64')
+      fs.writeFileSync(tempFilePath, fileData)
+
+      log.info(`已将base64数据写入临时文件: ${tempFilePath}`)
+
+      // 使用已有的CRX安装流程处理临时文件
+      // 解压CRX文件
+      const extractedPath = await extractCrxFile(tempFilePath)
+
+      // 加载扩展
+      const browserSession = session.fromPartition('persist:browser')
+      const extension = await browserSession.loadExtension(extractedPath)
+
+      // 操作完成后删除临时文件
+      try {
+        fs.unlinkSync(tempFilePath)
+      } catch (error) {
+        log.warn('删除临时文件失败:', error)
+        // 继续处理，不中断流程
+      }
+
+      return { success: true, extension }
+    } catch (error: any) {
+      log.error('安装Base64 CRX扩展失败:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 卸载扩展
+  ipcMain.handle('browser:uninstallExtension', async (_, extId: string) => {
+    try {
+      const browserSession = session.fromPartition('persist:browser')
+      await browserSession.removeExtension(extId)
+
+      // 删除扩展目录
+      const extensionsDir = path.join(app.getPath('userData'), 'extensions')
+      const extDir = path.join(extensionsDir, extId)
+      if (fs.existsSync(extDir)) {
+        fs.rmSync(extDir, { recursive: true, force: true })
+      }
+
+      return { success: true }
+    } catch (error: any) {
+      log.error('卸载扩展失败:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 从Chrome安装扩展
+  ipcMain.handle('browser:installChromeExtension', async (_, extId: string) => {
+    try {
+      // 查找Chrome扩展目录
+      let chromePath = ''
+      if (process.platform === 'win32') {
+        chromePath = path.join(process.env.LOCALAPPDATA || '', 'Google/Chrome/User Data/Default/Extensions')
+      } else if (process.platform === 'darwin') {
+        chromePath = path.join(os.homedir(), 'Library/Application Support/Google/Chrome/Default/Extensions')
+      } else {
+        // Linux
+        const possiblePaths = [
+          path.join(os.homedir(), '.config/google-chrome/Default/Extensions'),
+          path.join(os.homedir(), '.config/google-chrome-beta/Default/Extensions'),
+          path.join(os.homedir(), '.config/chromium/Default/Extensions')
+        ]
+
+        for (const p of possiblePaths) {
+          if (fs.existsSync(p)) {
+            chromePath = p
+            break
+          }
+        }
+      }
+
+      if (!chromePath || !fs.existsSync(chromePath)) {
+        return { success: false, error: '找不到Chrome扩展目录' }
+      }
+
+      // 查找扩展
+      const chromeExtDir = path.join(chromePath, extId)
+      if (!fs.existsSync(chromeExtDir)) {
+        return { success: false, error: `找不到扩展 ${extId}` }
+      }
+
+      // 找到最新版本
+      const versions = fs.readdirSync(chromeExtDir)
+      if (versions.length === 0) {
+        return { success: false, error: `扩展 ${extId} 没有可用版本` }
+      }
+
+      // 按版本号排序，选择最新版本
+      versions.sort((a, b) => {
+        return b.localeCompare(a, undefined, { numeric: true })
+      })
+
+      const latestVersion = versions[0]
+      const extPath = path.join(chromeExtDir, latestVersion)
+
+      // 安装扩展
+      const browserSession = session.fromPartition('persist:browser')
+      const extension = await browserSession.loadExtension(extPath)
+
+      // 复制扩展到扩展目录以便持久化
+      const extensionsDir = path.join(app.getPath('userData'), 'extensions')
+      const extDir = path.join(extensionsDir, extension.id)
+
+      // 如果目录已存在，先删除
+      if (fs.existsSync(extDir)) {
+        fs.rmSync(extDir, { recursive: true, force: true })
+      }
+
+      // 复制扩展文件
+      fs.cpSync(extPath, extDir, { recursive: true })
+
+      return { success: true, extension }
+    } catch (error: any) {
+      log.error('从Chrome安装扩展失败:', error)
+      return { success: false, error: error.message }
     }
   })
 
@@ -532,7 +912,6 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   // PDF服务
   ipcMain.handle(IpcChannel.PDF_SplitPDF, PDFService.splitPDF.bind(PDFService))
   ipcMain.handle(IpcChannel.PDF_GetPageCount, PDFService.getPDFPageCount.bind(PDFService))
-  ipcMain.handle(IpcChannel.PDF_ToWord, PDFService.toWord.bind(PDFService))
 
   // 深度研究服务
   deepResearchService.setMainWindow(mainWindow)

@@ -33,7 +33,7 @@ const AgentTaskList: FC<Props> = ({ tasks, onTaskClick, scrollToMessage }) => {
   useEffect(() => {
     console.log('AgentTaskList 接收到的任务数据:', {
       tasksCount: tasks.length,
-      tasks: tasks.map(t => ({
+      tasks: tasks.map((t) => ({
         id: t.id,
         title: t.title,
         status: t.status,

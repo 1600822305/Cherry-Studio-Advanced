@@ -222,6 +222,9 @@ const PopupContainer: React.FC<PopupContainerProps> = ({
         },
         body: {
           padding: 0
+        },
+        wrapper: {
+          zIndex: 30100
         }
       }}
       closeIcon={null}
@@ -300,11 +303,11 @@ const PopupContainer: React.FC<PopupContainerProps> = ({
             </Scrollbar>
           </ProviderListColumn>
 
-          {/* Right Column: Models - 仅渲染前30个模型 */}
+          {/* Right Column: Models - 显示所有模型，不再限制数量 */}
           <ModelListColumn>
             <Scrollbar style={{ height: '60vh', paddingRight: '5px' }}>
               {displayedModels.length > 0 ? (
-                displayedModels.slice(0, 30).map((m) => (
+                displayedModels.map((m) => (
                   <ModelListItem
                     key={getModelUniqId(m)}
                     $selected={activeModel ? getModelUniqId(activeModel) === getModelUniqId(m) : false}

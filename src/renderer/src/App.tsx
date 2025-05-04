@@ -4,6 +4,7 @@ import store, { persistor } from '@renderer/store'
 import { Provider } from 'react-redux'
 import { PersistGate } from 'redux-persist/integration/react'
 
+import BrowserChatSyncInitializer from './components/BrowserChatSyncInitializer'
 import DeepClaudeProvider from './components/DeepClaudeProvider'
 import GeminiInitializer from './components/GeminiInitializer'
 import MemoryProvider from './components/MemoryProvider'
@@ -35,6 +36,7 @@ function App(): React.ReactElement {
                   <SentryInitializer />
                   <WebSearchInitializer />
                   <WorkspaceInitializer />
+                  <BrowserChatSyncInitializer />
                   <TopViewContainer>
                     <RouterComponent />
                   </TopViewContainer>

@@ -1,0 +1,115 @@
+/* 聊天助手按钮覆盖样式 */
+
+/* 确保聊天侧边栏在最上层 */
+.chat-sidebar-header {
+  z-index: 20001 !important;
+  pointer-events: all !important;
+}
+
+/* 确保按钮可以点击 */
+.chat-sidebar-header .ant-btn,
+.chat-header-button,
+.toolbar-button {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 20002 !important;
+  position: relative !important;
+  height: 32px !important;
+  width: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 2px !important;
+}
+
+/* 确保工具提示可见 */
+.ant-tooltip {
+  z-index: 20003 !important;
+}
+
+/* 确保弹出层可见 */
+.ant-popover {
+  z-index: 20004 !important;
+}
+
+/* 确保Space组件可以点击 */
+.chat-sidebar-header .header-buttons,
+.chat-sidebar-header .header-left-buttons,
+.chat-sidebar-header .ant-space,
+.chat-sidebar-header .ant-space-item {
+  pointer-events: auto !important;
+  z-index: 20002 !important;
+  position: relative !important;
+}
+
+/* 确保按钮图标可点击 */
+.chat-sidebar-header .anticon,
+.chat-header-button .anticon {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 20003 !important;
+}
+
+/* 确保模态框在最上层 */
+.ant-modal {
+  z-index: 20100 !important;
+}
+
+/* 确保模态框遮罩在最上层 */
+.ant-modal-mask {
+  z-index: 20099 !important;
+}
+
+/* 修复按钮容器 */
+.chat-sidebar-header .header-buttons {
+  display: flex !important;
+  align-items: center !important;
+  position: relative !important;
+  z-index: 20000 !important;
+  pointer-events: auto !important;
+  margin-left: auto !important;
+}
+
+/* 修复左侧按钮容器 */
+.chat-sidebar-header .header-left-buttons {
+  display: flex !important;
+  align-items: center !important;
+  position: relative !important;
+  z-index: 20000 !important;
+  pointer-events: auto !important;
+  margin-right: 10px !important;
+}
+
+/* 确保聊天侧边栏容器可点击 */
+.chat-sidebar-container {
+  z-index: 19999 !important;
+  pointer-events: auto !important;
+}
+
+/* 确保工具栏容器可点击 */
+.toolbar-container {
+  z-index: 20000 !important;
+  pointer-events: auto !important;
+}
+
+/* 确保工具栏按钮容器可点击 */
+.toolbar-buttons {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  pointer-events: auto !important;
+  z-index: 20001 !important;
+  position: relative !important;
+}
+
+/* 防止webview覆盖聊天侧边栏 */
+.webview-wrapper,
+.webview-wrapper.active,
+webview {
+  z-index: 1 !important;
+}
+
+/* 确保聊天侧边栏在webview之上 */
+.chat-sidebar-container {
+  z-index: 19999 !important;
+}

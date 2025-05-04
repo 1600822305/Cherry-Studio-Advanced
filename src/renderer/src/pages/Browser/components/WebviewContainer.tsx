@@ -17,6 +17,8 @@ interface WebviewContainerProps {
   onCloseGoogleTip: () => void
   onGoogleLogin: () => void
   onClearData: () => void
+  chatSidebarOpen?: boolean
+  chatSidebarExpanded?: boolean
 }
 
 const WebviewContainer: React.FC<WebviewContainerProps> = ({
@@ -29,7 +31,9 @@ const WebviewContainer: React.FC<WebviewContainerProps> = ({
   setupWebviewListeners,
   onCloseGoogleTip,
   onGoogleLogin,
-  onClearData
+  onClearData,
+  chatSidebarOpen = false,
+  chatSidebarExpanded = false
 }) => {
   // 处理webview初始化/销毁
   const handleWebviewInit = useCallback(
@@ -47,7 +51,10 @@ const WebviewContainer: React.FC<WebviewContainerProps> = ({
   )
 
   return (
-    <StyledWebviewContainer>
+    <StyledWebviewContainer
+      $chatSidebarOpen={chatSidebarOpen}
+      $chatSidebarExpanded={chatSidebarExpanded}
+    >
       {showGoogleLoginTip && (
         <GoogleLoginTip onClose={onCloseGoogleTip} onUseGoogleMobile={onGoogleLogin} onClearData={onClearData} />
       )}

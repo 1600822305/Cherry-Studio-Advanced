@@ -1,0 +1,30 @@
+/* 覆盖聊天侧边栏按钮的样式，确保它们可以点击 */
+
+/* 确保按钮可以点击 */
+.chat-header-buttons-wrapper {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 12px !important;
+  z-index: 20000 !important;
+  pointer-events: auto !important;
+}
+
+/* 确保按钮可以点击 */
+.chat-header-buttons-wrapper .ant-btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* 确保工具提示可见 */
+.ant-tooltip {
+  z-index: 20001 !important;
+}
+
+/* 确保弹出层可见 */
+.ant-popover {
+  z-index: 20002 !important;
+}

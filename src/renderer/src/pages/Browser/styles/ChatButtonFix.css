@@ -1,0 +1,73 @@
+/* 修复聊天侧边栏按钮点击问题 */
+.chat-sidebar-header .ant-btn {
+  pointer-events: auto !important;
+  height: 100%;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 10001;
+}
+
+/* 确保按钮图标可点击 */
+.chat-sidebar-header .anticon {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10002;
+}
+
+/* 确保工具提示可见 */
+.ant-tooltip {
+  z-index: 10050 !important;
+}
+
+/* 确保弹出层可见 */
+.ant-popover {
+  z-index: 10051 !important;
+}
+
+/* 确保按钮容器可点击 */
+.chat-sidebar-header .header-buttons {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10000;
+}
+
+/* 确保Space组件可点击 */
+.chat-sidebar-header .ant-space {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10000;
+}
+
+/* 确保Space项可点击 */
+.chat-sidebar-header .ant-space-item {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10001;
+}
+
+/* 确保模态框在最上层 */
+.ant-modal {
+  z-index: 10100 !important;
+}
+
+/* 确保模态框遮罩在最上层 */
+.ant-modal-mask {
+  z-index: 10099 !important;
+}
+
+/* 专门针对聊天头部按钮的样式 */
+.chat-header-button {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 10002 !important;
+  cursor: pointer !important;
+  height: 32px !important;
+  width: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 2px !important;
+}

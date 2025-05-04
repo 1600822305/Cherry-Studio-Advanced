@@ -84,6 +84,15 @@ const DisplaySettings: FC = () => {
             <span>{t('settings.theme.auto')}</span>
           </div>
         )
+      },
+      {
+        value: ThemeMode.timeBasedAuto,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <i className="iconfont icon-theme icon-time" />
+            <span>{t('settings.theme.timeBasedAuto') || '基于时间'}</span>
+          </div>
+        )
       }
     ],
     [t]

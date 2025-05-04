@@ -269,7 +269,7 @@ const MainMenus: FC = () => {
       }
 
       // 定义内置插件
-      const builtInPlugins = ['markdown-editor', 'code-analyzer', 'simple-calendar', 'pdf-to-word']
+      const builtInPlugins = ['markdown-editor', 'code-analyzer', 'simple-calendar']
 
       // 使用插件状态更新内置功能列表
       const builtInFunctions: AppFunction[] = [
@@ -293,13 +293,6 @@ const MainMenus: FC = () => {
           isActive: !!plugins.find((p) => p.id === 'simple-calendar' && p.state.isActive),
           icon: '📅',
           requiredModules: ['dayjs']
-        },
-        {
-          id: 'pdf-to-word',
-          name: 'PDF转Word工具',
-          isActive: !!plugins.find((p) => p.id === 'pdf-to-word' && p.state.isActive),
-          icon: '📄',
-          requiredModules: ['pdf-lib', 'docx']
         }
       ]
 
@@ -511,9 +504,6 @@ const MainMenus: FC = () => {
           if (func.id === 'simple-calendar') {
             console.log('导航到日历')
             navigate('/calendar')
-          } else if (func.id === 'pdf-to-word') {
-            console.log('导航到PDF转Word工具')
-            navigate('/pdf-to-word')
           } else if (func.id === 'simple-text-tools') {
             // 处理文本工具插件的点击
             console.log('打开简易文本工具')

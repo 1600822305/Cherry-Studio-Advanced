@@ -367,7 +367,10 @@ export function getMcpServerByTool(tool: MCPTool) {
 }
 
 export function parseToolUse(content: string, mcpTools: MCPTool[]): MCPToolResponse[] {
+  console.log('[parseToolUse] 开始解析工具调用', { contentLength: content?.length || 0, mcpToolsCount: mcpTools?.length || 0 })
+  
   if (!content || !mcpTools || mcpTools.length === 0) {
+    console.log('[parseToolUse] 无内容或无工具，跳过解析')
     return []
   }
 
@@ -381,6 +384,15 @@ export function parseToolUse(content: string, mcpTools: MCPTool[]): MCPToolRespo
 
   // 3. 简化格式: <tool_use>工具ID参数JSON</tool_use>
   const simplifiedToolUsePattern = /<tool_use>\s*([\w\d]+)\s*([\s\S]*?)\s*<\/tool_use>/g // Remove unnecessary escapes: \s, \S, \/
+
+  // 4. Gemini超简化格式: <tool_use>\n工具名\n参数\n</tool_use>
+  const geminiSimplifiedToolUsePattern = /<tool_use>\s*\n\s*([\w\d_-]+)\s*\n\s*([\s\S]*?)\s*\n\s*<\/tool_use>/g
+
+  // 5. Gemini无换行简化格式: <tool_use>工具名 参数</tool_use>
+  const geminiNoLineBreakPattern = /<tool_use>\s*([\w\d_-]+)\s+([\s\S]*?)\s*<\/tool_use>/g
+
+  // 6. Gemini极简格式: <tool_use>工具名</tool_use>
+  const geminiMinimalPattern = /<tool_use>\s*([\w\d_-]+)\s*<\/tool_use>/g
 
   const tools: MCPToolResponse[] = []
   let idx = 0
@@ -481,6 +493,96 @@ export function parseToolUse(content: string, mcpTools: MCPTool[]): MCPToolRespo
     })
   }
 
+  // 处理Gemini超简化格式
+  while ((match = geminiSimplifiedToolUsePattern.exec(content)) !== null) {
+    const toolName = match[1].trim()
+    const toolArgs = match[2].trim()
+
+    // 尝试解析参数为JSON
+    let parsedArgs
+    try {
+      parsedArgs = JSON.parse(toolArgs)
+    } catch (error) {
+      // 如果解析失败，使用字符串原样
+      parsedArgs = toolArgs
+    }
+
+    const mcpTool = mcpTools.find((tool) => tool.id === toolName)
+    if (!mcpTool) {
+      console.error(`Tool "${toolName}" not found in MCP tools`)
+      continue
+    }
+
+    // 添加到工具数组
+    tools.push({
+      id: `${toolName}-${idx++}`,
+      tool: {
+        ...mcpTool,
+        inputSchema: parsedArgs
+      },
+      status: 'pending'
+    })
+  }
+
+  // 处理Gemini无换行简化格式
+  while ((match = geminiNoLineBreakPattern.exec(content)) !== null) {
+    const toolName = match[1].trim()
+    const toolArgs = match[2].trim()
+
+    // 尝试解析参数为JSON
+    let parsedArgs
+    try {
+      parsedArgs = JSON.parse(toolArgs)
+    } catch (error) {
+      // 如果解析失败，使用字符串原样
+      parsedArgs = toolArgs
+    }
+
+    const mcpTool = mcpTools.find((tool) => tool.id === toolName)
+    if (!mcpTool) {
+      console.error(`Tool "${toolName}" not found in MCP tools`)
+      continue
+    }
+
+    // 添加到工具数组
+    tools.push({
+      id: `${toolName}-${idx++}`,
+      tool: {
+        ...mcpTool,
+        inputSchema: parsedArgs
+      },
+      status: 'pending'
+    })
+  }
+
+  // 处理Gemini极简格式 - 没有参数的情况
+  while ((match = geminiMinimalPattern.exec(content)) !== null) {
+    const toolName = match[1].trim()
+    // 对于没有参数的情况，使用正确的InputSchema格式
+    const parsedArgs = {
+      type: 'object',
+      title: 'Input',
+      properties: {}
+    }
+
+    const mcpTool = mcpTools.find((tool) => tool.id === toolName)
+    if (!mcpTool) {
+      console.error(`Tool "${toolName}" not found in MCP tools`)
+      continue
+    }
+
+    // 添加到工具数组
+    tools.push({
+      id: `${toolName}-${idx++}`,
+      tool: {
+        ...mcpTool,
+        inputSchema: parsedArgs
+      },
+      status: 'pending'
+    })
+  }
+
+  console.log('[parseToolUse] 解析完成，找到工具调用数量:', tools.length)
   return tools
 }
 
@@ -488,7 +590,7 @@ export function parseToolUse(content: string, mcpTools: MCPTool[]): MCPToolRespo
 export async function executeToolCalls(
   tools: MCPToolResponse[],
   toolResponses: MCPToolResponse[],
-  onChunk: CompletionsParams['onChunk'],
+  onChunk: ({ mcpToolResponse }: ChunkCallbackData) => void,
   idx: number
 ): Promise<{ toolId: string; response: MCPCallToolResponse }[]> {
   if (!tools || tools.length === 0) {

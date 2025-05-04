@@ -1,4 +1,5 @@
 import {
+  AppstoreOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined,
   BugOutlined,
@@ -19,6 +20,9 @@ import { useTranslation } from 'react-i18next'
 import { NavBar as StyledNavBar } from '../styles/BrowserStyles'
 import { ErrorIndicator, NavBarButtonGroup, SecurityIndicator, UrlBarContainer, UrlInput } from '../styles/NavBarStyles'
 import BookmarkButton from './BookmarkButton'
+import ChatButton from './ChatButton'
+import ExtensionManager from './ExtensionManager'
+import ExtensionToolbar from './ExtensionToolbar'
 
 interface NavBarProps {
   currentUrl: string
@@ -30,6 +34,7 @@ interface NavBarProps {
   linkOpenMode: 'newTab' | 'newWindow'
   title: string
   favicon?: string
+  activeWebview?: React.RefObject<Electron.WebviewTag> // 当前活动的webview引用
   onUrlChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onUrlSubmit: () => void
   onGoBack: () => void
@@ -54,6 +59,7 @@ const NavBar: React.FC<NavBarProps> = ({
   linkOpenMode,
   title,
   favicon,
+  activeWebview,
   onUrlChange,
   onUrlSubmit,
   onGoBack,
@@ -71,6 +77,15 @@ const NavBar: React.FC<NavBarProps> = ({
   const inputRef = useRef<any>(null)
   const [isSecure, setIsSecure] = useState(true)
   const [isUrlFocused, setIsUrlFocused] = useState(false)
+  const [showExtensionManager, setShowExtensionManager] = useState(false)
+
+  const handleOpenExtensionManager = () => {
+    setShowExtensionManager(true)
+  }
+
+  const handleCloseExtensionManager = () => {
+    setShowExtensionManager(false)
+  }
 
   // 检查URL是否安全 (https)
   useEffect(() => {
@@ -233,8 +248,24 @@ const NavBar: React.FC<NavBarProps> = ({
           <Tooltip title={t('browser.clear_data')}>
             <Button icon={<DeleteOutlined />} onClick={onClearData} />
           </Tooltip>
+
+          {/* 扩展管理按钮 */}
+          <Tooltip title="管理扩展">
+            <Button icon={<AppstoreOutlined />} onClick={handleOpenExtensionManager} />
+          </Tooltip>
+
+          {/* 聊天按钮 */}
+          <ChatButton activeWebview={activeWebview} />
         </Space>
+
+        {/* 扩展工具栏 */}
+        <ExtensionToolbar onOpenExtensionManager={handleOpenExtensionManager} />
       </NavBarButtonGroup>
+
+      {/* 扩展管理器 */}
+      {showExtensionManager && (
+        <ExtensionManager visible={showExtensionManager} onClose={handleCloseExtensionManager} />
+      )}
     </StyledNavBar>
   )
 }

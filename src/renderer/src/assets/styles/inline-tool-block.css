@@ -1,23 +1,36 @@
 /* 内联工具调用块样式 */
 .inline-tool-block {
-  margin: 12px 0;
+  margin: 20px 0 !important;
   border-radius: 8px;
-  overflow: hidden;
   border: 1px solid var(--color-border);
   background-color: var(--color-bg-1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: visible !important;
 }
 
 .inline-tool-block:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-primary-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 /* 工具调用和工具结果之间的分隔 */
 .message-content-container .inline-tool-block + .inline-tool-block {
-  margin-top: -5px;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
+  margin-top: 25px !important;
+  position: relative;
+}
+
+/* 添加分隔线 */
+.message-content-container .inline-tool-block + .inline-tool-block::before {
+  content: "";
+  position: absolute;
+  top: -13px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-border);
+  width: 80%;
+  margin: 0 auto;
 }
 
 /* 工具调用后面紧跟的工具结果 */
@@ -27,21 +40,24 @@
 
 /* 工具调用标题栏 */
 .inline-tool-block .tool-header {
-  background-color: var(--color-bg-2);
-  border-bottom: 1px solid var(--color-border);
-  padding: 8px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 10px 14px;
+  background-color: var(--color-bg-2);
+  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
-  -webkit-user-select: none;
   user-select: none;
+  font-size: 13px;
+  border-radius: 8px 8px 0 0;
 }
 
 /* 工具名称 */
 .inline-tool-block .tool-name {
-  font-weight: 500;
+  font-weight: bold;
+  margin-right: 8px;
   color: var(--color-text);
+  font-size: 14px;
 }
 
 /* 工具状态指示器 */
@@ -49,23 +65,22 @@
   font-size: 12px;
   display: flex;
   align-items: center;
-  opacity: 0.85;
 }
 
 /* 工具内容区域 */
 .inline-tool-block .tool-content {
-  padding: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
 }
 
 /* 代码块 */
 .inline-tool-block pre {
   margin: 0;
-  padding: 8px;
+  padding: 10px;
   background-color: var(--color-bg-2);
   border-radius: 4px;
   overflow: auto;
   font-size: 12px;
-  color: var(--color-text);
   max-height: 200px;
 }
 
@@ -76,4 +91,18 @@
   justify-content: center;
   padding: 16px;
   color: var(--color-text-2);
+}
+
+/* 工具类型标签 */
+.inline-tool-block::after {
+  content: "工具调用";
+  position: absolute;
+  right: 10px;
+  top: -10px;
+  background: var(--color-bg-1);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--color-text-3);
+  border: 1px solid var(--color-border);
 }

@@ -137,6 +137,23 @@ export const builtinMCPServers: MCPServer[] = [
     type: 'inMemory',
     description: '万能科学计算器，提供数学表达式计算、单位转换、统计计算等功能，支持复杂的科学计算和数据分析。',
     isActive: true
+  },
+  {
+    id: nanoid(),
+    name: '@cherry/siliconflow-flux',
+    type: 'inMemory',
+    description: '使用 SiliconFlow 的 Flux Schnell 模型生成高质量图像的 MCP 服务器。需要配置 SILICONFLOW_API_KEY 环境变量。',
+    env: {
+      SILICONFLOW_API_KEY: ''
+    },
+    isActive: false
+  },
+  {
+    id: nanoid(),
+    name: '@cherry/function-plot',
+    type: 'inMemory',
+    description: '绘制数学函数图像的 MCP 服务器，支持二次函数、线性函数等，并返回 PNG 格式的图像。',
+    isActive: true
   }
 ]
 

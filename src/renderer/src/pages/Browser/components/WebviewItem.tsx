@@ -101,11 +101,12 @@ const WebviewItem: React.FC<WebviewItemProps> = ({
         // 使用字符串属性来避免React警告
         partition="persist:browser"
         useragent={userAgent}
-        webpreferences="contextIsolation=no, javascript=yes, webgl=yes, webaudio=yes, allowRunningInsecureContent=yes, nodeIntegration=yes"
+        webpreferences="contextIsolation=no, javascript=yes, webgl=yes, webaudio=yes, allowRunningInsecureContent=yes, nodeIntegration=yes, enableRemoteModule=yes"
         // 使用data-*属性来标记需要设置的布尔属性
         data-allowpopups="true"
         data-disablewebsecurity="true"
         data-plugins="true"
+        data-enableblinkfeatures="CSSVariables,KeyboardEventKey"
       />
 
       {/* 错误显示容器 - 类型断言处理可选属性 */}

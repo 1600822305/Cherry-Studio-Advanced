@@ -6,6 +6,8 @@ import { replaceDevtoolsFont } from '@main/utils/windowUtil'
 import { app, session } from 'electron'
 import installExtension, { REACT_DEVELOPER_TOOLS, REDUX_DEVTOOLS } from 'electron-devtools-installer'
 import Logger from 'electron-log'
+import * as fs from 'fs'
+import * as path from 'path'
 
 import { registerIpc } from './ipc'
 import { configManager } from './services/ConfigManager'
@@ -42,6 +44,35 @@ if (!app.requestSingleInstanceLock()) {
 
     // 默认使用桌面用户代理
     browserSession.setUserAgent(desktopUserAgent)
+
+    // 添加扩展支持
+    // 创建扩展目录
+    const extensionsDir = path.join(app.getPath('userData'), 'extensions')
+    if (!fs.existsSync(extensionsDir)) {
+      fs.mkdirSync(extensionsDir, { recursive: true })
+    }
+
+    // 加载已安装的扩展
+    const loadExtensions = async () => {
+      try {
+        const extensions = fs.readdirSync(extensionsDir)
+        for (const extId of extensions) {
+          const extPath = path.join(extensionsDir, extId)
+          if (fs.statSync(extPath).isDirectory()) {
+            try {
+              await browserSession.loadExtension(extPath)
+              console.log(`已加载扩展: ${extId}`)
+            } catch (err) {
+              console.error(`加载扩展失败 ${extId}:`, err)
+            }
+          }
+        }
+      } catch (err) {
+        console.error('加载扩展目录失败:', err)
+      }
+    }
+
+    await loadExtensions()
 
     // 配置请求拦截器
     browserSession.webRequest.onBeforeSendHeaders((details, callback) => {

@@ -229,7 +229,8 @@ export enum FileTypes {
 export enum ThemeMode {
   light = 'light',
   dark = 'dark',
-  auto = 'auto'
+  auto = 'auto',
+  timeBasedAuto = 'timeBasedAuto'
 }
 
 export type LanguageVarious = 'zh-CN' | 'zh-TW' | 'el-GR' | 'en-US' | 'es-ES' | 'fr-FR' | 'ja-JP' | 'pt-PT' | 'ru-RU'

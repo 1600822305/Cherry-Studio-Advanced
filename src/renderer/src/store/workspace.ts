@@ -19,6 +19,7 @@ export interface WorkspaceState {
   currentWorkspaceId: string | null
   isLoading: boolean
   error: string | null
+  enableWorkspacePrompt: boolean // 是否启用工作区提示词
 }
 
 // 初始状态
@@ -26,7 +27,8 @@ const initialState: WorkspaceState = {
   workspaces: [],
   currentWorkspaceId: null,
   isLoading: false,
-  error: null
+  error: null,
+  enableWorkspacePrompt: false // 默认不启用工作区提示词
 }
 
 // 创建工作区 slice
@@ -108,6 +110,14 @@ const workspaceSlice = createSlice({
     // 设置错误信息
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload
+    },
+
+    // 设置是否启用工作区提示词
+    setEnableWorkspacePrompt: (state, action: PayloadAction<boolean>) => {
+      state.enableWorkspacePrompt = action.payload
+
+      // 保存到本地存储
+      localStorage.setItem('enableWorkspacePrompt', action.payload ? 'true' : 'false')
     }
   }
 })
@@ -120,7 +130,8 @@ export const {
   removeWorkspace,
   setCurrentWorkspace,
   setLoading,
-  setError
+  setError,
+  setEnableWorkspacePrompt
 } = workspaceSlice.actions
 
 // 选择器
@@ -137,6 +148,7 @@ export const selectCurrentWorkspace = createSelector(
 
 export const selectIsLoading = (state: RootState) => state.workspace.isLoading
 export const selectError = (state: RootState) => state.workspace.error
+export const selectEnableWorkspacePrompt = (state: RootState) => state.workspace.enableWorkspacePrompt
 
 // 选择对AI可见的工作区
 export const selectVisibleToAIWorkspaces = createSelector(
@@ -188,6 +200,12 @@ export const initWorkspaces = () => async (dispatch: any) => {
       dispatch(setCurrentWorkspace(currentWorkspaceId))
     } else if (workspaces.length > 0) {
       dispatch(setCurrentWorkspace(workspaces[0].id))
+    }
+
+    // 从本地存储获取工作区提示词状态
+    const enableWorkspacePrompt = localStorage.getItem('enableWorkspacePrompt')
+    if (enableWorkspacePrompt === 'true') {
+      dispatch(setEnableWorkspacePrompt(true))
     }
 
     dispatch(setLoading(false))

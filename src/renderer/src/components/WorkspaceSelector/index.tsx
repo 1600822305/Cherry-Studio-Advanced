@@ -4,15 +4,18 @@ import {
   EyeInvisibleOutlined,
   EyeOutlined,
   FolderOpenOutlined,
-  PlusOutlined
+  MessageOutlined,
+  PlusOutlined,
+  StopOutlined
 } from '@ant-design/icons'
 import WorkspaceService from '@renderer/services/WorkspaceService'
 import { RootState } from '@renderer/store'
+import { selectEnableWorkspacePrompt, setEnableWorkspacePrompt } from '@renderer/store/workspace'
 import type { MenuProps } from 'antd'
 import { Button, Dropdown, Empty, Input, message, Modal, Space, Tooltip } from 'antd'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import styled from 'styled-components'
 
 const WorkspaceSelectorContainer = styled.div`
@@ -33,6 +36,7 @@ const WorkspacePath = styled.span`
 
 const WorkspaceSelector: React.FC = () => {
   const { t } = useTranslation()
+  const dispatch = useDispatch()
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [workspaceName, setWorkspaceName] = useState('')
@@ -42,6 +46,7 @@ const WorkspaceSelector: React.FC = () => {
   const workspaces = useSelector((state: RootState) => state.workspace.workspaces)
   const currentWorkspaceId = useSelector((state: RootState) => state.workspace.currentWorkspaceId)
   const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId) || null
+  const enableWorkspacePrompt = useSelector(selectEnableWorkspacePrompt)
 
   // 初始化工作区
   useEffect(() => {
@@ -128,6 +133,15 @@ const WorkspaceSelector: React.FC = () => {
     })
 
     message.success(newVisibility ? t('workspace.visibilityEnabled') : t('workspace.visibilityDisabled'))
+  }
+
+  // 切换工作区提示词状态
+  const handleToggleWorkspacePrompt = () => {
+    const newState = !enableWorkspacePrompt
+    dispatch(setEnableWorkspacePrompt(newState))
+    message.success(
+      newState ? '已启用工作区提示词，AI将能看到工作区文件结构' : '已禁用工作区提示词，AI将不会看到工作区文件结构'
+    )
   }
 
   // 工作区下拉菜单项
@@ -218,6 +232,16 @@ const WorkspaceSelector: React.FC = () => {
               setIsModalVisible(true)
             }}
           />
+        </Tooltip>
+
+        <Tooltip title={enableWorkspacePrompt ? '点击禁用工作区提示词' : '点击启用工作区提示词'}>
+          <Button
+            type={enableWorkspacePrompt ? 'default' : 'dashed'}
+            icon={enableWorkspacePrompt ? <MessageOutlined /> : <StopOutlined />}
+            style={{ marginLeft: 8 }}
+            onClick={handleToggleWorkspacePrompt}>
+            {enableWorkspacePrompt ? '已启用提示词' : '已禁用提示词'}
+          </Button>
         </Tooltip>
       </WorkspaceSelectorContainer>
 

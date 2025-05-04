@@ -8,6 +8,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import allPlugins from '@renderer/plugins'
 import { useModuleRegistry } from '@renderer/services/ModuleRegistryManager'
 import { useAppDispatch, useAppSelector } from '@renderer/store'
+import { clearPlugins } from '@renderer/store/slices/pluginSystemSlice'
 import { ExtensionPointRegistry, Plugin, PluginAPI, PluginMeta } from '@renderer/types/plugin'
 import { message } from 'antd'
 import { ReactNode, useCallback, useEffect, useState } from 'react'
@@ -618,12 +619,30 @@ export const usePluginSystem = () => {
           // 额外更新activatedPlugins列表，用于备份激活状态
           try {
             const activatedPluginsJson = localStorage.getItem('activatedPlugins') || '[]'
-            const activatedPlugins = JSON.parse(activatedPluginsJson)
+            let activatedPlugins = JSON.parse(activatedPluginsJson)
+
+            // 确保activatedPlugins是数组
+            if (!Array.isArray(activatedPlugins)) {
+              activatedPlugins = []
+            }
+
+            // 检查并去重
+            const uniquePluginIds = [...new Set(activatedPlugins)]
+
+            // 如果发现重复，更新列表
+            if (uniquePluginIds.length !== activatedPlugins.length) {
+              console.log(`检测到重复的激活插件ID，从 ${activatedPlugins.length} 个减少到 ${uniquePluginIds.length} 个`)
+              activatedPlugins = uniquePluginIds
+            }
+
+            // 添加当前插件ID（如果不存在）
             if (!activatedPlugins.includes(pluginId)) {
               activatedPlugins.push(pluginId)
-              localStorage.setItem('activatedPlugins', JSON.stringify(activatedPlugins))
               console.log(`已将插件 ${pluginId} 添加到activatedPlugins列表`)
             }
+
+            // 保存更新后的列表
+            localStorage.setItem('activatedPlugins', JSON.stringify(activatedPlugins))
           } catch (e) {
             console.error('更新activatedPlugins失败:', e)
           }
@@ -673,12 +692,49 @@ export const usePluginSystem = () => {
         )
       }
 
-      // 从localStorage加载插件
+      // 加载插件黑名单
+      const blacklistJson = localStorage.getItem('plugin_blacklist') || '[]'
+      let blacklist: string[] = []
+      try {
+        const parsed = JSON.parse(blacklistJson)
+        blacklist = Array.isArray(parsed) ? parsed : []
+        console.log('插件黑名单:', blacklist)
+      } catch (e) {
+        console.error('解析插件黑名单失败:', e)
+      }
+
+      // 清除可能存在的重复插件数据
       const storedPluginsJson = localStorage.getItem(STORAGE_KEY)
       if (storedPluginsJson) {
         try {
-          const storedPlugins = JSON.parse(storedPluginsJson)
-          console.log('从存储加载的插件:', storedPlugins)
+          let storedPlugins = JSON.parse(storedPluginsJson)
+          console.log('从存储加载的插件 (原始):', storedPlugins)
+
+          // 检查并移除重复的插件和黑名单中的插件
+          const uniquePlugins: any[] = []
+          const pluginIds = new Set<string>()
+
+          for (const plugin of storedPlugins) {
+            if (plugin && plugin.id && !pluginIds.has(plugin.id)) {
+              // 跳过黑名单中的插件
+              if (blacklist.includes(plugin.id)) {
+                console.log(`跳过黑名单中的插件: ${plugin.id}`)
+                continue
+              }
+
+              pluginIds.add(plugin.id)
+              uniquePlugins.push(plugin)
+            }
+          }
+
+          // 如果发现重复或黑名单插件，更新存储
+          if (uniquePlugins.length !== storedPlugins.length) {
+            console.log(`检测到重复或黑名单插件，从 ${storedPlugins.length} 个减少到 ${uniquePlugins.length} 个`)
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(uniquePlugins))
+            storedPlugins = uniquePlugins
+          }
+
+          console.log('从存储加载的插件 (去重和过滤后):', storedPlugins)
 
           // 注册存储的插件
           for (const plugin of storedPlugins) {
@@ -692,9 +748,9 @@ export const usePluginSystem = () => {
 
       // 预注册所有统一注册的插件
       for (const plugin of allPlugins) {
-        // 检查插件是否已经注册
+        // 检查插件是否已经注册，以及是否在黑名单中
         const existingPlugin = plugins.find((p) => p.id === plugin.id)
-        if (!existingPlugin) {
+        if (!existingPlugin && !blacklist.includes(plugin.id)) {
           console.log(`预注册统一管理的插件: ${plugin.id}`)
           const pluginMeta: PluginMeta = {
             id: plugin.id,
@@ -706,6 +762,8 @@ export const usePluginSystem = () => {
             requiredModules: plugin.requiredModules || []
           }
           await registerPlugin(pluginMeta)
+        } else if (blacklist.includes(plugin.id)) {
+          console.log(`跳过黑名单中的插件: ${plugin.id}`)
         }
       }
 
@@ -713,8 +771,30 @@ export const usePluginSystem = () => {
       try {
         const activatedPluginsJson = localStorage.getItem('activatedPlugins')
         if (activatedPluginsJson) {
-          const activatedPlugins = JSON.parse(activatedPluginsJson)
-          console.log('找到已激活的插件:', activatedPlugins)
+          let activatedPlugins = JSON.parse(activatedPluginsJson)
+          console.log('找到已激活的插件 (原始):', activatedPlugins)
+
+          // 确保activatedPlugins是字符串数组
+          if (!Array.isArray(activatedPlugins)) {
+            activatedPlugins = []
+          }
+
+          // 检查并移除重复的插件ID
+          const uniquePluginIds = [...new Set(activatedPlugins)]
+
+          // 过滤掉黑名单中的插件ID
+          const filteredPluginIds = uniquePluginIds.filter((id) => typeof id === 'string' && !blacklist.includes(id))
+
+          // 如果发现重复或黑名单插件，更新存储
+          if (filteredPluginIds.length !== activatedPlugins.length) {
+            console.log(
+              `检测到重复或黑名单的激活插件ID，从 ${activatedPlugins.length} 个减少到 ${filteredPluginIds.length} 个`
+            )
+            localStorage.setItem('activatedPlugins', JSON.stringify(filteredPluginIds))
+            activatedPlugins = filteredPluginIds
+          }
+
+          console.log('找到已激活的插件 (去重和过滤后):', activatedPlugins)
 
           // 激活已激活的插件
           for (const pluginId of activatedPlugins) {
@@ -866,6 +946,174 @@ export const usePluginSystem = () => {
     [extensionPoints]
   )
 
+  // 重置插件系统
+  const resetPluginSystem = useCallback(async () => {
+    try {
+      console.log('开始重置插件系统...')
+
+      // 停用所有激活的插件
+      for (const plugin of plugins) {
+        if (plugin.state.isActive) {
+          await deactivatePlugin(plugin.id)
+        }
+      }
+
+      // 保存当前的插件黑名单
+      let blacklist: string[] = []
+      try {
+        const blacklistJson = localStorage.getItem('plugin_blacklist') || '[]'
+        blacklist = JSON.parse(blacklistJson)
+        if (!Array.isArray(blacklist)) {
+          blacklist = []
+        }
+        console.log('保存当前插件黑名单:', blacklist)
+      } catch (e) {
+        console.error('解析插件黑名单失败:', e)
+      }
+
+      // 清除所有与插件相关的localStorage项
+      // 获取所有localStorage的键
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key) {
+          // 清除所有与插件相关的项，但保留黑名单
+          if (
+            key === STORAGE_KEY ||
+            key === 'activatedPlugins' ||
+            key.startsWith('plugin_settings_') ||
+            (key.includes('plugin') && key !== 'plugin_blacklist') ||
+            key.includes('Plugin')
+          ) {
+            keysToRemove.push(key)
+          }
+        }
+      }
+
+      // 删除收集到的键
+      console.log('清除以下localStorage项:', keysToRemove)
+      keysToRemove.forEach((key) => localStorage.removeItem(key))
+
+      // 确保黑名单被保留
+      localStorage.setItem('plugin_blacklist', JSON.stringify(blacklist))
+
+      // 重置Redux状态
+      dispatch(setInitialized(false))
+      dispatch(clearPlugins())
+
+      // 重新初始化插件系统
+      setTimeout(() => {
+        initializePluginSystem()
+      }, 500) // 增加延迟，确保状态完全清除
+
+      console.log('插件系统重置完成')
+      return true
+    } catch (error) {
+      console.error('重置插件系统失败:', error)
+      dispatch(setError(`重置失败: ${error}`))
+      return false
+    }
+  }, [plugins, dispatch, deactivatePlugin, initializePluginSystem])
+
+  // 强制刷新插件
+  const refreshPlugin = useCallback(
+    async (pluginId: string) => {
+      try {
+        console.log(`开始刷新插件: ${pluginId}`)
+
+        // 找到插件
+        const plugin = plugins.find((p) => p.id === pluginId)
+        if (!plugin) {
+          console.error(`找不到插件: ${pluginId}`)
+          return false
+        }
+
+        // 如果插件已激活，先停用
+        if (plugin.state.isActive) {
+          await deactivatePlugin(pluginId)
+        }
+
+        // 移除插件
+        dispatch(removePlugin(pluginId))
+
+        // 清除插件设置
+        localStorage.removeItem(`plugin_settings_${pluginId}`)
+
+        // 从activatedPlugins中移除
+        try {
+          const activatedPluginsJson = localStorage.getItem('activatedPlugins') || '[]'
+          const activatedPlugins = JSON.parse(activatedPluginsJson)
+          const updatedActivatedPlugins = activatedPlugins.filter((id: string) => id !== pluginId)
+          localStorage.setItem('activatedPlugins', JSON.stringify(updatedActivatedPlugins))
+        } catch (e) {
+          console.error('更新activatedPlugins失败:', e)
+        }
+
+        // 保存原始插件信息，用于后续恢复
+        const wasActive = plugin.state.isActive // 保存激活状态
+        const originalPluginInfo = {
+          id: plugin.id,
+          name: plugin.name,
+          description: plugin.description,
+          version: plugin.version,
+          author: plugin.author,
+          icon: plugin.icon,
+          requiredModules: plugin.requiredModules || []
+        }
+
+        // 尝试从allPlugins中查找插件
+        const registeredPlugin = allPlugins.find((p) => p.id === pluginId)
+
+        if (registeredPlugin) {
+          // 如果在allPlugins中找到，使用注册的信息
+          console.log(`从注册的插件中找到: ${pluginId}`)
+          const pluginMeta: PluginMeta = {
+            id: registeredPlugin.id,
+            name: registeredPlugin.name,
+            description: registeredPlugin.description,
+            version: registeredPlugin.version,
+            author: registeredPlugin.author,
+            icon: registeredPlugin.icon,
+            requiredModules: registeredPlugin.requiredModules || []
+          }
+
+          await registerPlugin(pluginMeta)
+        } else {
+          // 如果在allPlugins中找不到，使用原始插件信息
+          console.log(`在注册的插件中找不到 ${pluginId}，使用原始信息恢复`)
+
+          // 创建PluginMeta对象
+          const pluginMeta: PluginMeta = {
+            id: originalPluginInfo.id,
+            name: originalPluginInfo.name || `插件 ${pluginId}`,
+            description: originalPluginInfo.description || '刷新恢复的插件',
+            version: originalPluginInfo.version || '1.0.0',
+            author: originalPluginInfo.author || '系统',
+            icon: originalPluginInfo.icon || '🧩',
+            requiredModules: originalPluginInfo.requiredModules || []
+          }
+
+          await registerPlugin(pluginMeta)
+        }
+
+        // 安装并激活插件
+        await installPlugin(pluginId)
+
+        // 如果原来是激活状态，则重新激活
+        if (wasActive) {
+          await activatePlugin(pluginId)
+        }
+
+        console.log(`插件刷新完成: ${pluginId}`)
+        return true
+      } catch (error) {
+        console.error(`刷新插件失败: ${pluginId}`, error)
+        return false
+      }
+    },
+    [plugins, dispatch, deactivatePlugin, registerPlugin, installPlugin, activatePlugin]
+  )
+
   return {
     plugins,
     extensionPoints,
@@ -879,6 +1127,8 @@ export const usePluginSystem = () => {
     deactivatePlugin,
     uninstallPlugin,
     getPluginExtensions,
-    createPluginAPI
+    createPluginAPI,
+    resetPluginSystem,
+    refreshPlugin
   }
 }

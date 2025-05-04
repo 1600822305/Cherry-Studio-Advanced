@@ -217,14 +217,23 @@ const SimpleTextTools: Plugin = {
       // 将功能添加到localStorage
       try {
         const existingSettingsJson = localStorage.getItem('functionSettings')
-        let settings = []
+        // 明确定义settings的类型
+        interface FunctionSetting {
+          id: string
+          name: string
+          isActive: boolean
+          icon: string
+          requiredModules: string[]
+        }
+
+        let settings: FunctionSetting[] = []
 
         if (existingSettingsJson) {
           settings = JSON.parse(existingSettingsJson)
         }
 
         // 仅当不存在时添加
-        if (!settings.some((func: any) => func.id === 'simple-text-tools')) {
+        if (!settings.some((func: FunctionSetting) => func.id === 'simple-text-tools')) {
           settings.push({
             id: 'simple-text-tools',
             name: '简易文本工具',
@@ -265,8 +274,17 @@ const SimpleTextTools: Plugin = {
       try {
         const existingSettingsJson = localStorage.getItem('functionSettings')
         if (existingSettingsJson) {
-          let settings = JSON.parse(existingSettingsJson)
-          settings = settings.filter((func: any) => func.id !== 'simple-text-tools')
+          // 使用与上面相同的类型定义
+          interface FunctionSetting {
+            id: string
+            name: string
+            isActive: boolean
+            icon: string
+            requiredModules: string[]
+          }
+
+          let settings: FunctionSetting[] = JSON.parse(existingSettingsJson)
+          settings = settings.filter((func: FunctionSetting) => func.id !== 'simple-text-tools')
           localStorage.setItem('functionSettings', JSON.stringify(settings))
         }
       } catch (error) {

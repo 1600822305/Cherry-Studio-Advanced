@@ -58,10 +58,20 @@ export const TabsContainer = styled.div`
   }
 `
 
-export const WebviewContainer = styled.div`
+export const WebviewContainer = styled.div<{ $chatSidebarOpen?: boolean; $chatSidebarExpanded?: boolean }>`
   flex: 1;
   height: calc(100% - 90px); // 调整高度以适应选项卡
   position: relative;
+  width: 100%;
+  transition: width 0.3s ease, margin-right 0.3s ease;
+  ${(props) => props.$chatSidebarOpen && !props.$chatSidebarExpanded && `
+    width: calc(100% - 25%);
+    margin-right: 25%;
+  `}
+  ${(props) => props.$chatSidebarOpen && props.$chatSidebarExpanded && `
+    width: calc(100% - 40%);
+    margin-right: 40%;
+  `}
 
   .webview-wrapper {
     width: 100%;
@@ -71,6 +81,8 @@ export const WebviewContainer = styled.div`
     left: 0;
     visibility: hidden;
     z-index: 1;
+    pointer-events: auto;
+    transition: width 0.3s ease;
 
     &.active {
       visibility: visible;
@@ -83,6 +95,7 @@ export const WebviewContainer = styled.div`
     height: 100%;
     border: none;
     outline: none;
+    z-index: 1;
   }
 `
 

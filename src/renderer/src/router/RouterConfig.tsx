@@ -9,7 +9,6 @@ import FilesPage from '@renderer/pages/files/FilesPage'
 import HomePage from '@renderer/pages/home/HomePage'
 import KnowledgePage from '@renderer/pages/knowledge/KnowledgePage'
 import PaintingsPage from '@renderer/pages/paintings/PaintingsPage'
-import PDFToWordPage from '@renderer/pages/pdf-to-word'
 import SettingsPage from '@renderer/pages/settings/SettingsPage'
 import TranslatePage from '@renderer/pages/translate/TranslatePage'
 import WorkspacePage from '@renderer/pages/workspace'
@@ -63,10 +62,6 @@ export const router = createHashRouter(
       element: <CalendarPage />
     },
     {
-      path: '/pdf-to-word',
-      element: <PDFToWordPage />
-    },
-    {
       path: '/settings/*',
       element: <SettingsPage />
     }
@@ -104,7 +99,6 @@ export const RouterComponent = ({ children }: { children?: React.ReactNode }) =>
         <Route path="/deepresearch" element={<DeepResearchPage />} />
         <Route path="/browser" element={<Browser />} />
         <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/pdf-to-word" element={<PDFToWordPage />} />
         <Route path="/settings/*" element={<SettingsPage />} />
       </Routes>
       {children}

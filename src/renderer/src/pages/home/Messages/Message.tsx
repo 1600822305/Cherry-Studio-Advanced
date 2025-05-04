@@ -486,7 +486,7 @@ const useContextMenuItems = (t: (key: string) => string, message: Message) => {
     // 清理函数
     return () => {
       // 使用类型断言来避免 TypeScript 错误
-      ;(window as any).toggleTranslation = undefined
+      ; (window as any).toggleTranslation = undefined
     }
   }, [])
 

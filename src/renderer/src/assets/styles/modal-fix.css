@@ -1,0 +1,56 @@
+/* 完全移除模态窗口遮罩层 */
+.ant-modal-mask {
+  display: none !important; /* 完全隐藏遮罩层 */
+}
+
+/* 确保模态框内容正常显示 */
+.ant-modal-wrap {
+  z-index: 30100 !important;
+}
+
+.ant-modal {
+  z-index: 30100 !important;
+}
+
+/* 修复模型选择下拉列表的显示问题 */
+.ant-select-dropdown {
+  z-index: 30200 !important;
+}
+
+/* 浏览器聊天助手的下拉菜单样式 */
+.chat-sidebar-container .ant-select-dropdown,
+.model-selector-dropdown {
+  z-index: 40002 !important;
+}
+
+/* 浏览器聊天模型选择器特定样式 */
+.browser-chat-model-selector .ant-select-dropdown {
+  z-index: 50000 !important;
+}
+
+/* 特定的模型选择器弹出层样式 */
+.model-selector-popover {
+  z-index: 40000 !important;
+}
+
+/* 浏览器聊天助手的模型选择器样式 */
+.chat-sidebar-container .ant-popover,
+.chat-header-buttons-wrapper .ant-popover {
+  z-index: 40000 !important;
+}
+
+/* 确保聊天助手Popover内容可见 */
+.chat-sidebar-container .ant-popover-content,
+.chat-header-buttons-wrapper .ant-popover-content {
+  z-index: 40001 !important;
+}
+
+/* 修复提示工具的显示层级 */
+.ant-tooltip {
+  z-index: 30300 !important;
+}
+
+/* 修复弹出层的显示层级 */
+.ant-popover {
+  z-index: 30400 !important;
+}

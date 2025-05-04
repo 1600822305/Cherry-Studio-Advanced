@@ -1,5 +1,9 @@
 import store from '@renderer/store'
-import { selectCurrentWorkspace, selectVisibleToAIWorkspaces } from '@renderer/store/workspace'
+import {
+  selectCurrentWorkspace,
+  selectEnableWorkspacePrompt,
+  selectVisibleToAIWorkspaces
+} from '@renderer/store/workspace'
 
 import WorkspaceService from './WorkspaceService'
 
@@ -79,6 +83,15 @@ export const getWorkspaceInfo = async (): Promise<string> => {
  * @returns 增强后的系统提示词
  */
 export const enhancePromptWithWorkspaceInfo = async (systemPrompt: string): Promise<string> => {
+  // 检查是否启用工作区提示词
+  const enableWorkspacePrompt = selectEnableWorkspacePrompt(store.getState())
+
+  // 如果未启用工作区提示词，直接返回原始提示词
+  if (!enableWorkspacePrompt) {
+    console.log('[WorkspaceAIService] 工作区提示词未启用，跳过添加工作区信息')
+    return systemPrompt
+  }
+
   const workspaceInfo = await getWorkspaceInfo()
 
   if (!workspaceInfo) {
@@ -86,5 +99,6 @@ export const enhancePromptWithWorkspaceInfo = async (systemPrompt: string): Prom
   }
 
   // 添加工作区信息到系统提示词
+  console.log('[WorkspaceAIService] 工作区提示词已启用，添加工作区信息')
   return `${systemPrompt}\n\n工作区信息:\n${workspaceInfo}\n\n请注意，上面只显示了工作区根目录下的文件和文件夹。如果需要查看子目录或文件内容，请使用相应的工具函数，如 workspace_list_files 或 workspace_read_file。\n\n请在回答用户问题时，考虑工作区中的文件结构和内容。`
 }

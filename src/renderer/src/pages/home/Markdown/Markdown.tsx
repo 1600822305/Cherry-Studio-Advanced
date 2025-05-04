@@ -258,6 +258,15 @@ const Markdown: FC<Props> = ({
         // 显示思考过程的内容
         return props.children
       },
+      // 添加JSON格式思考标签的支持
+      'json-thinking': (props: any) => {
+        // JSON格式思考过程的内容
+        return props.children
+      },
+      'json-thought': (props: any) => {
+        // JSON格式思考过程的内容
+        return props.children
+      },
       // 自定义处理translated标签
       translated: (props: any) => {
         // 将translated标签渲染为可点击的span
@@ -291,7 +300,7 @@ const Markdown: FC<Props> = ({
         console.log('[Markdown] Rendering SingleToolCallBlock for toolCallId:', toolCallId) // Log rendering SingleToolCallBlock
         // 渲染 SingleToolCallBlock 组件，并传递必要的 props
         return (
-          <div className="tool-block-wrapper">
+          <div className="tool-block-wrapper separated-tool-block">
             <SingleToolCallBlock
               toolResponse={toolResponse}
               isActive={activeToolKeys.includes(toolCallId)}
@@ -360,7 +369,9 @@ const Markdown: FC<Props> = ({
           // 添加点击事件
           citation.addEventListener('click', (e) => {
             e.preventDefault()
-            e.stopPropagation()
+            // 移除阻止冒泡，只阻止默认行为
+            // e.stopPropagation() 
+
             // console.log('Citation clicked:', data)
 
             // 如果是锚点链接，滚动到页面对应位置

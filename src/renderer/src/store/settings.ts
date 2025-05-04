@@ -73,7 +73,9 @@ export interface SettingsState {
   autoCheckUpdate: boolean
   renderInputMessageAsMarkdown: boolean
   enableHistoricalContext: boolean // 是否启用历史对话上下文功能
-  usePromptForToolCalling: boolean // 是否使用提示词而非函数调用来调用MCP工具
+  usePromptForToolCalling: boolean // 是否使用提示词而非函数调用来调用MCP工具（兼容旧版，将被废弃）
+  useOpenAIPromptForToolCalling: boolean // 是否为OpenAI使用提示词而非函数调用来调用MCP工具
+  useGeminiPromptForToolCalling: boolean // 是否为Gemini使用提示词而非函数调用来调用MCP工具
   enableAgentMode: boolean // 是否启用Agent模式
   agentModeMaxApiRequests: number // Agent模式下最大API请求次数
   showAgentTaskList: boolean // 是否显示Agent任务列表
@@ -245,7 +247,9 @@ export const initialState: SettingsState = {
   autoCheckUpdate: true,
   renderInputMessageAsMarkdown: false,
   enableHistoricalContext: false, // 默认禁用历史对话上下文功能
-  usePromptForToolCalling: true, // 默认使用提示词而非函数调用来调用MCP工具
+  usePromptForToolCalling: true, // 默认使用提示词而非函数调用来调用MCP工具（兼容旧版）
+  useOpenAIPromptForToolCalling: true, // 默认OpenAI使用提示词调用
+  useGeminiPromptForToolCalling: false, // 默认Gemini使用函数调用
   enableAgentMode: false, // 默认禁用Agent模式
   agentModeMaxApiRequests: 20, // 默认最大API请求次数为20
   showAgentTaskList: true, // 默认显示Agent任务列表
@@ -397,6 +401,14 @@ const settingsSlice = createSlice({
     },
     setUsePromptForToolCalling: (state, action: PayloadAction<boolean>) => {
       state.usePromptForToolCalling = action.payload
+      // 同时更新新的设置，保持兼容性
+      state.useOpenAIPromptForToolCalling = action.payload
+    },
+    setUseOpenAIPromptForToolCalling: (state, action: PayloadAction<boolean>) => {
+      state.useOpenAIPromptForToolCalling = action.payload
+    },
+    setUseGeminiPromptForToolCalling: (state, action: PayloadAction<boolean>) => {
+      state.useGeminiPromptForToolCalling = action.payload
     },
     setShowAssistants: (state, action: PayloadAction<boolean>) => {
       state.showAssistants = action.payload
@@ -1007,6 +1019,8 @@ export const {
   setSkipNextAutoTTS,
   setEnableBackspaceDeleteModel,
   setUsePromptForToolCalling,
+  setUseOpenAIPromptForToolCalling,
+  setUseGeminiPromptForToolCalling,
   // DeepResearch 设置
   setEnableDeepResearch,
   setDeepResearchShortcut,

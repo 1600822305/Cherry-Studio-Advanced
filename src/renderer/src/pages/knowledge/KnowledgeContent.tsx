@@ -166,7 +166,7 @@ const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
       inputPlaceholder: t('knowledge.url_placeholder'),
       inputProps: {
         rows: 10,
-        onPressEnter: () => { }
+        onPressEnter: () => {}
       }
     })
 

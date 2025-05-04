@@ -26,7 +26,7 @@ export function loadTabs(): { tabs: Tab[]; activeTabId: string } {
   try {
     const tabsJson = localStorage.getItem(TABS_STORAGE_KEY)
     const activeTabId = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY)
-    
+
     if (tabsJson && activeTabId) {
       const tabs = JSON.parse(tabsJson) as Tab[]
       console.log(`Loaded tabs from storage: ${tabs.length} tabs, active tab: ${activeTabId}`)
@@ -35,7 +35,7 @@ export function loadTabs(): { tabs: Tab[]; activeTabId: string } {
   } catch (error) {
     console.error('Failed to load tabs from storage:', error)
   }
-  
+
   // 默认值
   const defaultTab: Tab = {
     id: `tab-${Date.now()}`,
@@ -46,7 +46,7 @@ export function loadTabs(): { tabs: Tab[]; activeTabId: string } {
     canGoBack: false,
     canGoForward: false
   }
-  
+
   return {
     tabs: [defaultTab],
     activeTabId: defaultTab.id

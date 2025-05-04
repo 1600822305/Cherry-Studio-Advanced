@@ -6,7 +6,9 @@ import CalculatorServer from './calculator'
 import DifyKnowledgeServer from './dify-knowledge'
 import FetchServer from './fetch'
 import FileSystemServer from './filesystem'
+import FunctionPlotServer from './function-plot'
 import MemoryServer from './memory'
+import SiliconFlowFluxServer from './siliconflow-flux'
 import ThinkingServer from './sequentialthinking'
 import SimpleRememberServer from './simpleremember'
 import TimeToolsServer from './timetools'
@@ -92,6 +94,33 @@ export async function createInMemoryMCPServer(
         return calculatorServer.server
       } catch (error) {
         Logger.error('[MCP] Error creating CalculatorServer instance:', error)
+        throw error
+      }
+    }
+    case '@cherry/siliconflow-flux': {
+      Logger.info('[MCP] Creating SiliconFlowFluxServer instance')
+      try {
+        const apiKey = envs.SILICONFLOW_API_KEY
+        if (!apiKey) {
+          throw new Error('SILICONFLOW_API_KEY environment variable is required for SiliconFlow Flux server')
+        }
+
+        const server = new SiliconFlowFluxServer(apiKey).server
+        Logger.info('[MCP] SiliconFlowFluxServer instance created successfully')
+        return server
+      } catch (error) {
+        Logger.error('[MCP] Error creating SiliconFlowFluxServer instance:', error)
+        throw error
+      }
+    }
+    case '@cherry/function-plot': {
+      Logger.info('[MCP] Creating FunctionPlotServer instance')
+      try {
+        const server = new FunctionPlotServer().server
+        Logger.info('[MCP] FunctionPlotServer instance created successfully')
+        return server
+      } catch (error) {
+        Logger.error('[MCP] Error creating FunctionPlotServer instance:', error)
         throw error
       }
     }

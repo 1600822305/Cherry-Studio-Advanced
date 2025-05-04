@@ -36,7 +36,19 @@ export const SyntaxHighlighterProvider: React.FC<PropsWithChildren> = ({ childre
       return theme === ThemeMode.light ? 'one-light' : 'material-theme-darker'
     }
 
-    return codeStyle
+    // 映射CodeMirrorEditor中的主题名称到shiki支持的主题名称
+    const themeMapping: Record<string, string> = {
+      'one-dark': 'one-dark-pro',
+      'ayu-dark': 'ayu-dark',
+      andromeda: 'andromeda',
+      'aurora-x': 'aurora-x',
+      'catppuccin-frappe': 'catppuccin-frappe',
+      'catppuccin-latte': 'catppuccin-latte',
+      'catppuccin-macchiato': 'catppuccin-macchiato',
+      'catppuccin-mocha': 'catppuccin-mocha'
+    }
+
+    return themeMapping[String(codeStyle)] || codeStyle
   }, [theme, codeStyle])
 
   const codeToHtml = useCallback(

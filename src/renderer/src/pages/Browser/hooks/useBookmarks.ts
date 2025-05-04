@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Bookmark, BookmarkFolder, BookmarkTreeNode } from '../types/bookmark'
+
 import { bookmarkService } from '../services/BookmarkService'
+import { Bookmark, BookmarkFolder, BookmarkTreeNode } from '../types/bookmark'
 
 /**
  * 书签管理Hook
@@ -62,9 +63,7 @@ export const useBookmarks = () => {
       try {
         const updatedBookmark = await bookmarkService.updateBookmark(id, updates)
         if (updatedBookmark) {
-          setBookmarks((prev) =>
-            prev.map((bookmark) => (bookmark.id === id ? updatedBookmark : bookmark))
-          )
+          setBookmarks((prev) => prev.map((bookmark) => (bookmark.id === id ? updatedBookmark : bookmark)))
           await loadBookmarks() // 重新加载以更新树结构
         }
         return updatedBookmark
@@ -119,9 +118,7 @@ export const useBookmarks = () => {
       try {
         const updatedFolder = await bookmarkService.updateFolder(id, updates)
         if (updatedFolder) {
-          setFolders((prev) =>
-            prev.map((folder) => (folder.id === id ? updatedFolder : folder))
-          )
+          setFolders((prev) => prev.map((folder) => (folder.id === id ? updatedFolder : folder)))
           await loadBookmarks() // 重新加载以更新树结构
         }
         return updatedFolder

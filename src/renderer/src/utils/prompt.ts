@@ -156,21 +156,46 @@ import { getRememberedMemories } from './remember-utils'
 export const GEMINI_TOOL_PROMPT = `
 你有权限使用一系列工具来帮助回答用户的问题。请严格遵守以下指导：
 
-1. 必须主动使用工具：当用户请求信息或操作时，你必须立即主动使用相关工具，而不是等待用户提示。不要先回复“我可以帮你查看”等语句，直接调用工具获取信息。
+1. 必须主动使用工具：当用户请求信息或操作时，你必须立即主动使用相关工具，而不是等待用户提示。不要先回复"我可以帮你查看"等语句，直接调用工具获取信息。
 
 2. 工具使用场景（必须立即执行）：
    - 用户询问文件、目录或工作区相关信息时，立即使用 workspace_list_files 工具
    - 用户要查看文件内容时，立即使用 workspace_read_file 工具
    - 用户要创建或修改文件时，立即使用 workspace_create_file 或 workspace_write_file 工具
    - 用户要搜索文件时，立即使用 workspace_search_files 工具
+   - 用户需要当前时间时，立即使用 get_current_time 工具
+   - 用户需要浏览器相关功能时，使用相应的浏览器工具
 
-3. 直接调用原则：当用户请求信息时，不要先解释你将要做什么，直接调用工具并展示结果。例如，当用户请求“查看工作区文件”时，直接调用 workspace_list_files 工具。
+3. 直接调用原则：当用户请求信息时，不要先解释你将要做什么，直接调用工具并展示结果。例如，当用户请求"查看工作区文件"时，直接调用 workspace_list_files 工具。
 
 4. 不要等待用户确认：当用户请求信息时，不要等待用户确认或提示就直接调用工具。用户已经默认同意你使用工具。
 
 5. 连续工具调用：如果需要多个工具才能完成任务，请连续调用工具，不要中断询问用户。
+`
 
-警告：如果你不主动使用工具，而是等待用户提示，将被视为严重错误。用户期望你直接使用工具获取信息，而不是等待他们再次提示。
+// 创建一个统一的系统提示词模板，适用于所有模型的提示词调用模式
+export const SYSTEM_PROMPT_UNIFIED = `
+你是一个能够使用工具的AI助手。你可以通过XML格式的标签调用工具来完成用户请求。
+
+当需要使用工具时，请按照以下格式：
+<tool_use>
+  <n>工具名称</n>
+  <arguments>{"参数1":"值1","参数2":"值2"}</arguments>
+</tool_use>
+
+工具调用示例：
+{{ TOOL_USE_EXAMPLES }}
+
+可用的工具列表：
+{{ AVAILABLE_TOOLS }}
+
+使用工具的指导原则：
+1. 主动使用工具：当用户请求需要工具帮助的信息时，直接使用相应工具。
+2. 清晰表达意图：先简短说明你将使用什么工具做什么，再调用工具。
+3. 连续工具调用：如需要多个工具完成任务，可以连续调用。
+4. 解释工具结果：工具返回结果后，简洁地解释结果含义。
+
+{{ USER_SYSTEM_PROMPT }}
 `
 
 export const buildSystemPrompt = async (
@@ -209,14 +234,21 @@ export const buildSystemPrompt = async (
   let finalPrompt: string
   // 检查是否有工具可用
   if (tools && tools.length > 0) {
-    // 获取当前的usePromptForToolCalling设置
-    const usePromptForToolCalling = store.getState().settings.usePromptForToolCalling
-
-    // 获取当前的provider类型（从OpenAIProvider.ts调用时为OpenAI，从GeminiProvider.ts调用时为Gemini）
-    // 这里我们通过调用栈来判断是哪个provider调用的
+    // 根据provider类型获取相应的设置
     const callStack = new Error().stack || ''
     const isOpenAIProvider = callStack.includes('OpenAIProvider')
     const isGeminiProvider = callStack.includes('GeminiProvider')
+    
+    // 获取对应提供商的提示词调用设置
+    let usePromptForToolCalling = false
+    if (isOpenAIProvider) {
+      usePromptForToolCalling = store.getState().settings.useOpenAIPromptForToolCalling
+    } else if (isGeminiProvider) {
+      usePromptForToolCalling = store.getState().settings.useGeminiPromptForToolCalling
+    } else {
+      // 兼容旧版设置
+      usePromptForToolCalling = store.getState().settings.usePromptForToolCalling
+    }
 
     console.log('[Prompt] Building prompt for tools:', {
       promptLength: enhancedPrompt.length,
@@ -226,21 +258,24 @@ export const buildSystemPrompt = async (
     })
 
     if (isOpenAIProvider && usePromptForToolCalling) {
-      // 对于OpenAI，使用SYSTEM_PROMPT模板，并替换占位符
-      const openAIToolPrompt = SYSTEM_PROMPT.replace('{{ TOOL_USE_EXAMPLES }}', ToolUseExamples)
+      // 对于OpenAI，使用统一的提示词模板
+      const openAIToolPrompt = SYSTEM_PROMPT_UNIFIED.replace('{{ TOOL_USE_EXAMPLES }}', ToolUseExamples)
         .replace('{{ AVAILABLE_TOOLS }}', AvailableTools(tools))
         .replace('{{ USER_SYSTEM_PROMPT }}', enhancedPrompt)
 
-      console.log('[Prompt] Using OpenAI tool prompt with examples')
+      console.log('[Prompt] Using unified tool prompt for OpenAI')
       finalPrompt = openAIToolPrompt
-    } else if (isGeminiProvider) {
-      // 对于Gemini，使用GEMINI_TOOL_PROMPT
-      finalPrompt = GEMINI_TOOL_PROMPT + '\n\n' + enhancedPrompt
-      console.log('[Prompt] Added Gemini tool usage enhancement prompt')
+    } else if (isGeminiProvider && usePromptForToolCalling) {
+      // 对于Gemini，使用相同的统一提示词模板
+      const geminiToolPrompt = SYSTEM_PROMPT_UNIFIED.replace('{{ TOOL_USE_EXAMPLES }}', ToolUseExamples)
+        .replace('{{ AVAILABLE_TOOLS }}', AvailableTools(tools))
+        .replace('{{ USER_SYSTEM_PROMPT }}', enhancedPrompt)
+      
+      console.log('[Prompt] Using unified tool prompt for Gemini')
+      finalPrompt = geminiToolPrompt
     } else {
       // 默认情况，直接使用增强的提示词
       finalPrompt = enhancedPrompt
-      console.log('[Prompt] Using enhanced prompt without tool instructions')
     }
   } else {
     console.log('[Prompt] Building prompt without tools:', {

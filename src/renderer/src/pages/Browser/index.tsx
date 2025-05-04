@@ -1,12 +1,27 @@
+import './styles/ChatSidebarFix.css' // 导入修复聊天侧边栏按钮点击问题的CSS
+
 import { WebviewTag } from 'electron'
 import React, { useEffect, useRef, useState } from 'react'
+// import { useLocation } from 'react-router-dom' // 暂时未使用
 
-import { AnimatedBrowserTabs, BookmarkBar, BookmarkManager, NavBar, WebviewContainer } from './components'
+import AnimatedBrowserTabs from './components/AnimatedBrowserTabs'
+import BookmarkBar from './components/BookmarkBar'
+import BookmarkManager from './components/BookmarkManager'
+import NavBar from './components/NavBar'
+import WebviewContainer from './components/WebviewContainer'
 import { useAnimatedTabs } from './hooks/useAnimatedTabs'
 import { useGoogleLogin } from './hooks/useGoogleLogin'
 import { useNavigation } from './hooks/useNavigation'
 import { useWebviewEvents } from './hooks/useWebviewEvents'
 import { BrowserContainer } from './styles/BrowserStyles'
+
+// 创建全局状态管理对象，用于共享聊天侧边栏状态
+export const ChatSidebarState = {
+  isOpen: false,
+  isExpanded: false,
+  setIsOpen: (_isOpen: boolean) => { },
+  setIsExpanded: (_isExpanded: boolean) => { }
+}
 
 const Browser: React.FC = () => {
   // 使用增强的标签页管理钩子
@@ -50,6 +65,18 @@ const Browser: React.FC = () => {
 
   // 书签管理器状态
   const [showBookmarkManager, setShowBookmarkManager] = useState(false)
+
+  // 聊天侧边栏状态
+  const [chatSidebarOpen, setChatSidebarOpen] = useState(false)
+  const [chatSidebarExpanded, setChatSidebarExpanded] = useState(false)
+
+  // 更新全局状态管理对象
+  useEffect(() => {
+    ChatSidebarState.isOpen = chatSidebarOpen
+    ChatSidebarState.isExpanded = chatSidebarExpanded
+    ChatSidebarState.setIsOpen = setChatSidebarOpen
+    ChatSidebarState.setIsExpanded = setChatSidebarExpanded
+  }, [chatSidebarOpen, chatSidebarExpanded])
 
   // 使用导航钩子
   const {
@@ -103,6 +130,75 @@ const Browser: React.FC = () => {
     webviewRef
   )
 
+  // 处理IPC消息 - 标签页管理
+  useEffect(() => {
+    const ipcRenderer = window.electron?.ipcRenderer
+    if (!ipcRenderer) return
+
+    // 处理切换标签页请求
+    const switchTabListener = ipcRenderer.on('browser:switchTabRequested', (tabIndex: number) => {
+      console.log('收到切换标签页请求:', tabIndex)
+      if (tabIndex >= 0 && tabIndex < tabs.length) {
+        const targetTabId = tabs[tabIndex].id
+        handleTabChange(targetTabId)
+      }
+    })
+
+    // 处理列出标签页请求
+    const listTabsListener = ipcRenderer.on('browser:listTabsRequested', () => {
+      console.log('收到列出标签页请求')
+      const tabsInfo = tabs.map((tab, index) => ({
+        index,
+        id: tab.id,
+        title: tab.title,
+        url: tab.url,
+        isActive: tab.id === activeTabId
+      }))
+
+      // 使用invoke而不是sendMessage
+      ipcRenderer.invoke('browser:tabsListResponse', {
+        success: true,
+        tabs: tabsInfo,
+        activeTabIndex: tabs.findIndex(tab => tab.id === activeTabId)
+      })
+    })
+
+    // 处理关闭标签页请求
+    const closeTabListener = ipcRenderer.on('browser:closeTabRequested', (tabIndex: number) => {
+      console.log('收到关闭标签页请求:', tabIndex)
+      if (tabIndex >= 0 && tabIndex < tabs.length) {
+        // 创建一个合成事件以满足handleCloseTab的参数要求
+        const syntheticEvent = {
+          stopPropagation: () => { }
+        } as React.MouseEvent<HTMLElement>
+
+        handleCloseTab(tabs[tabIndex].id, syntheticEvent)
+      }
+    })
+
+    // 处理创建标签页请求
+    const createTabListener = ipcRenderer.on('browser:createTabRequested', (args: { url: string, title?: string }) => {
+      console.log('收到创建标签页请求:', args)
+      const { url, title } = args
+      const newTabId = handleAddTab(url, title || url)
+
+      // 使用invoke而不是sendMessage
+      ipcRenderer.invoke('browser:createTabResponse', {
+        success: true,
+        tabId: newTabId,
+        index: tabs.length // 新标签页将被添加到末尾
+      })
+    })
+
+    // 清理函数
+    return () => {
+      switchTabListener()
+      listTabsListener()
+      closeTabListener()
+      createTabListener()
+    }
+  }, [tabs, activeTabId, handleTabChange, handleCloseTab, handleAddTab])
+
   // 在组件挂载时同步一次cookie，确保会话共享
   useEffect(() => {
     // 同步cookie
@@ -141,6 +237,7 @@ const Browser: React.FC = () => {
         linkOpenMode={linkOpenMode}
         title={activeTab?.title || ''}
         favicon={activeTab?.favicon}
+        activeWebview={webviewRef}
         onUrlChange={handleUrlChange}
         onUrlSubmit={handleUrlSubmit}
         onGoBack={handleGoBack}
@@ -182,6 +279,8 @@ const Browser: React.FC = () => {
         onCloseGoogleTip={handleCloseGoogleTip}
         onGoogleLogin={handleGoogleLogin}
         onClearData={handleClearData}
+        chatSidebarOpen={chatSidebarOpen}
+        chatSidebarExpanded={chatSidebarExpanded}
       />
 
       {/* 书签管理器 */}

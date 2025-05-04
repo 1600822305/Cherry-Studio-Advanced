@@ -72,13 +72,39 @@ Object.defineProperty(navigator, 'languages', {
   writable: false
 })
 
-// 覆盖window.chrome - Chrome 134的chrome对象结构
+// 覆盖window.chrome - 增强的Chrome对象结构，支持扩展API
 window.chrome = {
   runtime: {
     id: undefined,
-    connect: function () {},
-    sendMessage: function () {},
-    onMessage: { addListener: function () {} }
+    getURL: (path) => {
+      return `chrome-extension://${chrome.runtime.id}/${path}`
+    },
+    connect: function () {
+      return {
+        onDisconnect: { addListener: function () {} },
+        onMessage: { addListener: function () {} },
+        postMessage: function () {}
+      }
+    },
+    sendMessage: function () {
+      return Promise.resolve()
+    },
+    onMessage: {
+      addListener: function (callback) {
+        this._listeners = this._listeners || []
+        this._listeners.push(callback)
+        return callback
+      },
+      removeListener: function (callback) {
+        this._listeners = this._listeners || []
+        this._listeners = this._listeners.filter((listener) => listener !== callback)
+      }
+    },
+    onConnect: { addListener: function () {} },
+    onInstalled: { addListener: function () {} },
+    getManifest: function () {
+      return {}
+    }
   },
   loadTimes: function () {
     return {
@@ -96,7 +122,154 @@ window.chrome = {
     return { startE: Date.now(), onloadT: Date.now() }
   },
   app: { isInstalled: false },
-  webstore: { onInstallStageChanged: {}, onDownloadProgress: {} }
+  webstore: { onInstallStageChanged: {}, onDownloadProgress: {} },
+
+  // 添加更多扩展API支持
+  tabs: {
+    query: function () {
+      return Promise.resolve([])
+    },
+    sendMessage: function () {
+      return Promise.resolve()
+    },
+    executeScript: function () {
+      return Promise.resolve()
+    },
+    update: function () {
+      return Promise.resolve()
+    },
+    create: function () {
+      return Promise.resolve()
+    },
+    getCurrent: function () {
+      return Promise.resolve({ id: 1 })
+    },
+    onUpdated: { addListener: function () {} },
+    onActivated: { addListener: function () {} }
+  },
+  storage: {
+    local: {
+      get: function () {
+        return Promise.resolve({})
+      },
+      set: function () {
+        return Promise.resolve()
+      },
+      remove: function () {
+        return Promise.resolve()
+      },
+      clear: function () {
+        return Promise.resolve()
+      }
+    },
+    sync: {
+      get: function () {
+        return Promise.resolve({})
+      },
+      set: function () {
+        return Promise.resolve()
+      },
+      remove: function () {
+        return Promise.resolve()
+      },
+      clear: function () {
+        return Promise.resolve()
+      }
+    },
+    onChanged: { addListener: function () {} }
+  },
+  contextMenus: {
+    create: function () {
+      return 1
+    },
+    update: function () {
+      return Promise.resolve()
+    },
+    remove: function () {
+      return Promise.resolve()
+    },
+    removeAll: function () {
+      return Promise.resolve()
+    },
+    onClicked: { addListener: function () {} }
+  },
+  cookies: {
+    get: function () {
+      return Promise.resolve({})
+    },
+    getAll: function () {
+      return Promise.resolve([])
+    },
+    set: function () {
+      return Promise.resolve()
+    },
+    remove: function () {
+      return Promise.resolve()
+    },
+    onChanged: { addListener: function () {} }
+  },
+  extension: {
+    getURL: function (path) {
+      return `chrome-extension://${chrome.runtime.id}/${path}`
+    },
+    getBackgroundPage: function () {
+      return window
+    },
+    isAllowedIncognitoAccess: function () {
+      return Promise.resolve(true)
+    },
+    isAllowedFileSchemeAccess: function () {
+      return Promise.resolve(true)
+    }
+  },
+  i18n: {
+    getMessage: function (messageName, substitutions) {
+      return messageName
+    }
+  },
+  permissions: {
+    contains: function () {
+      return Promise.resolve(true)
+    },
+    request: function () {
+      return Promise.resolve(true)
+    },
+    remove: function () {
+      return Promise.resolve(true)
+    },
+    onAdded: { addListener: function () {} },
+    onRemoved: { addListener: function () {} }
+  },
+  browserAction: {
+    setIcon: function () {
+      return Promise.resolve()
+    },
+    setBadgeText: function () {
+      return Promise.resolve()
+    },
+    setBadgeBackgroundColor: function () {
+      return Promise.resolve()
+    },
+    setTitle: function () {
+      return Promise.resolve()
+    },
+    onClicked: { addListener: function () {} }
+  },
+  action: {
+    setIcon: function () {
+      return Promise.resolve()
+    },
+    setBadgeText: function () {
+      return Promise.resolve()
+    },
+    setBadgeBackgroundColor: function () {
+      return Promise.resolve()
+    },
+    setTitle: function () {
+      return Promise.resolve()
+    },
+    onClicked: { addListener: function () {} }
+  }
 }
 
 // 添加WebGL支持检测 - 更新为Chrome 134的特征

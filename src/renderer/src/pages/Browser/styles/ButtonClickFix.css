@@ -1,0 +1,53 @@
+/* 按钮点击修复 */
+.toolbar-container .toolbar-button,
+.toolbar-container .toolbar-button * {
+  pointer-events: auto !important;
+}
+
+.chat-sidebar-header .ant-btn,
+.chat-sidebar-header .ant-btn * {
+  pointer-events: auto !important;
+}
+
+/* 确保按钮的父容器不会阻止点击事件 */
+.toolbar-buttons,
+.header-buttons,
+.header-left-buttons {
+  pointer-events: auto !important;
+}
+
+/* 防止事件冒泡被覆盖元素捕获 */
+.chat-sidebar-container {
+  isolation: isolate;
+}
+
+/* 弹出层和模态框样式修复 */
+.ant-popover {
+  z-index: 10001 !important;
+}
+
+.ant-modal-wrap,
+.ant-modal-mask,
+.ant-modal {
+  z-index: 10002 !important;
+}
+
+.ant-tooltip {
+  z-index: 10003 !important;
+}
+
+/* 禁止滚动穿透 */
+body.has-chat-sidebar-modal {
+  overflow: hidden;
+}
+
+/* 确保弹出内容可点击 */
+.ant-popover-inner,
+.ant-popover-inner-content,
+.ant-popover-inner * {
+  pointer-events: auto !important;
+}
+
+.model-selector-popover {
+  pointer-events: auto !important;
+} 

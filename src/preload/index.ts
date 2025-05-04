@@ -76,6 +76,7 @@ const api = {
     download: (url: string) => ipcRenderer.invoke(IpcChannel.File_Download, url),
     copy: (fileId: string, destPath: string) => ipcRenderer.invoke(IpcChannel.File_Copy, fileId, destPath),
     binaryFile: (fileId: string) => ipcRenderer.invoke(IpcChannel.File_BinaryFile, fileId),
+    base64File: (fileId: string) => ipcRenderer.invoke(IpcChannel.File_Base64File, fileId),
     writeBase64Image: (bytes: string) => ipcRenderer.invoke(IpcChannel.File_WriteBase64Image, bytes)
   },
   fs: {
@@ -263,9 +264,7 @@ const api = {
   },
   pdf: {
     splitPDF: (file: FileType, pageRange: string) => ipcRenderer.invoke(IpcChannel.PDF_SplitPDF, file, pageRange),
-    getPageCount: (filePath: string) => ipcRenderer.invoke(IpcChannel.PDF_GetPageCount, filePath),
-    toWord: (pdfBuffer: ArrayBuffer, outputPath?: string) =>
-      ipcRenderer.invoke(IpcChannel.PDF_ToWord, { pdfBuffer, outputPath })
+    getPageCount: (filePath: string) => ipcRenderer.invoke(IpcChannel.PDF_GetPageCount, filePath)
   },
   codeExecutor: {
     getSupportedLanguages: () => ipcRenderer.invoke(IpcChannel.CodeExecutor_GetSupportedLanguages),
@@ -277,23 +276,37 @@ const api = {
     destroyWebContents: (webContentsId: number) => ipcRenderer.invoke('browser:destroy-webcontents', webContentsId),
     // 暴露打开新窗口的IPC通道
     // 暂时使用字符串字面量绕过TypeScript错误
-    openNewWindow: (args: { url: string; title?: string }) => ipcRenderer.invoke('browser:openNewWindow', args)
+    openNewWindow: (args: { url: string; title?: string }) => ipcRenderer.invoke('browser:openNewWindow', args),
+    // 标签页管理相关API
+    switchTab: (tabIndex: number) => ipcRenderer.invoke('browser:switchTab', tabIndex),
+    listTabs: () => ipcRenderer.invoke('browser:listTabs'),
+    closeTab: (tabIndex: number) => ipcRenderer.invoke('browser:closeTab', tabIndex),
+    createTab: (url: string, title?: string) => ipcRenderer.invoke('browser:createTab', { url, title }),
+    // 扩展管理相关API
+    getExtensions: () => ipcRenderer.invoke('browser:getExtensions'),
+    installExtension: (extPath: string) => ipcRenderer.invoke('browser:installExtension', extPath),
+    uninstallExtension: (extId: string) => ipcRenderer.invoke('browser:uninstallExtension', extId),
+    installChromeExtension: (extId: string) => ipcRenderer.invoke('browser:installChromeExtension', extId),
+    installCrxExtension: (crxFilePath: string) => ipcRenderer.invoke('browser:installCrxExtension', crxFilePath),
+    // 添加使用base64数据安装CRX扩展的方法
+    installBase64CrxExtension: (fileName: string, base64Data: string) =>
+      ipcRenderer.invoke('browser:installBase64CrxExtension', fileName, base64Data)
   },
   moduleManager: {
     downloadModule: (packageName: string, version?: string) => {
-      console.log('preload: downloadModule called with', { packageName, version });
+      console.log('preload: downloadModule called with', { packageName, version })
       // 确保 version 参数不是 undefined
-      const moduleVersion = version || 'latest';
-      return ipcRenderer.invoke(IpcChannel.Module_Download, packageName, moduleVersion);
+      const moduleVersion = version || 'latest'
+      return ipcRenderer.invoke(IpcChannel.Module_Download, packageName, moduleVersion)
     },
     deleteModule: (packageName: string, version?: string) => {
-      const moduleVersion = version || null; // 使用 null 表示删除所有版本
-      return ipcRenderer.invoke(IpcChannel.Module_Delete, packageName, moduleVersion);
+      const moduleVersion = version || null // 使用 null 表示删除所有版本
+      return ipcRenderer.invoke(IpcChannel.Module_Delete, packageName, moduleVersion)
     },
     listModules: () => ipcRenderer.invoke(IpcChannel.Module_List),
     moduleExists: (packageName: string, version?: string) => {
-      const moduleVersion = version || 'latest';
-      return ipcRenderer.invoke(IpcChannel.Module_Exists, packageName, moduleVersion);
+      const moduleVersion = version || 'latest'
+      return ipcRenderer.invoke(IpcChannel.Module_Exists, packageName, moduleVersion)
     }
   }
 }

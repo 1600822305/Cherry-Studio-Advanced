@@ -1,0 +1,54 @@
+/* 全局修复聊天侧边栏按钮点击问题 */
+
+/* 确保聊天侧边栏在最上层 */
+.chat-sidebar-header {
+  z-index: 10001 !important;
+  pointer-events: all !important;
+}
+
+/* 确保按钮可以点击 */
+.chat-sidebar-header .ant-btn,
+.chat-header-buttons .ant-btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 10002 !important;
+  position: relative !important;
+}
+
+/* 确保工具提示可见 */
+.ant-tooltip {
+  z-index: 10003 !important;
+}
+
+/* 确保弹出层可见 */
+.ant-popover {
+  z-index: 10004 !important;
+}
+
+/* 确保Space组件可以点击 */
+.chat-header-buttons,
+.chat-header-buttons .ant-space-item {
+  pointer-events: auto !important;
+  z-index: 10002 !important;
+  position: relative !important;
+}
+
+/* 确保按钮图标可点击 */
+.chat-sidebar-header .anticon,
+.chat-header-buttons .anticon {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* 移除可能阻止点击的任何覆盖层 */
+.chat-sidebar-header::before,
+.chat-sidebar-header::after {
+  display: none !important;
+}
+
+/* 确保按钮悬停效果正常 */
+.chat-sidebar-header .ant-btn:hover,
+.chat-header-buttons .ant-btn:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  color: #1890ff !important;
+}

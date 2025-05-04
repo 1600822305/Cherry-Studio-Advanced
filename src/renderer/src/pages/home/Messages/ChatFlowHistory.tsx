@@ -481,7 +481,7 @@ const ChatFlowHistory: FC<ChatFlowHistoryProps> = ({ conversationId }) => {
               }}
               proOptions={{ hideAttribution: true }}
               className="react-flow-container"
-              colorMode={theme === 'auto' ? 'system' : theme}>
+              colorMode={theme === 'auto' || theme === 'timeBasedAuto' ? 'system' : theme}>
               <Controls showInteractive={false} />
               <MiniMap
                 nodeStrokeWidth={3}

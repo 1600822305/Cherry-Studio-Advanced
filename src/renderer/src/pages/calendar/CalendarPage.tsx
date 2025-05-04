@@ -32,4 +32,3 @@ const Content = styled.div`
 `
 
 export default CalendarPage
- 

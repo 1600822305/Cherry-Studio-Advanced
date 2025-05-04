@@ -192,8 +192,13 @@ export default abstract class BaseProvider {
 
     const cleanup = () => {
       if (messageId) {
-        signalPromise.resolve?.(undefined)
-        removeAbortController(messageId, abortFn)
+        try {
+          // 无论是否中止，都尝试resolve promise
+          signalPromise.resolve?.(undefined)
+          removeAbortController(messageId, abortFn)
+        } catch (error) {
+          console.error('[BaseProvider] Error during cleanup:', error)
+        }
       }
     }
     const signalPromise: {
@@ -205,21 +210,37 @@ export default abstract class BaseProvider {
     }
 
     if (isAddEventListener) {
-      signalPromise.promise = new Promise((resolve, reject) => {
-        signalPromise.resolve = resolve
-        if (abortController.signal.aborted) {
-          reject(new Error('Request was aborted.'))
+      // 创建一个包含事件处理器的对象
+      const handlers = {
+        abortHandler: () => {
+          console.log('[BaseProvider] Abort event detected, will be handled during cleanup')
         }
-        // 捕获abort事件,有些abort事件必须
-        abortController.signal.addEventListener('abort', () => {
-          reject(new Error('Request was aborted.'))
-        })
-      })
+      };
+
+      // 添加事件监听器
+      abortController.signal.addEventListener('abort', handlers.abortHandler);
+
+      // 创建一个包装的cleanup函数
+      const wrappedCleanup = () => {
+        try {
+          // 移除事件监听器
+          abortController.signal.removeEventListener('abort', handlers.abortHandler);
+          // 调用原始的cleanup函数
+          cleanup();
+        } catch (error) {
+          console.error('[BaseProvider] Error in wrapped cleanup:', error);
+        }
+      };
+
+      signalPromise.promise = new Promise((resolve) => {
+        signalPromise.resolve = resolve;
+      });
+
       return {
         abortController,
-        cleanup,
+        cleanup: wrappedCleanup,
         signalPromise
-      }
+      };
     }
     return {
       abortController,

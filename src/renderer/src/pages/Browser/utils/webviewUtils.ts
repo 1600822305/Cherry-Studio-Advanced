@@ -23,11 +23,12 @@ export function setupWebviewBooleanAttributes(webview: WebviewTag) {
  */
 export function getWebviewAttributes() {
   return {
-    partition: "persist:browser",
-    webpreferences: "contextIsolation=no, javascript=yes, webgl=yes, webaudio=yes, allowRunningInsecureContent=yes, nodeIntegration=yes",
-    'data-allowpopups': "true",
-    'data-disablewebsecurity': "true",
-    'data-plugins': "true"
+    partition: 'persist:browser',
+    webpreferences:
+      'contextIsolation=no, javascript=yes, webgl=yes, webaudio=yes, allowRunningInsecureContent=yes, nodeIntegration=yes',
+    'data-allowpopups': 'true',
+    'data-disablewebsecurity': 'true',
+    'data-plugins': 'true'
   }
 }
 
@@ -38,9 +39,6 @@ export function getWebviewAttributes() {
  * @param newWebview 新的webview元素
  * @returns 是否需要重新设置
  */
-export function shouldResetupWebview(
-  existingWebview: WebviewTag | null,
-  newWebview: WebviewTag
-): boolean {
+export function shouldResetupWebview(existingWebview: WebviewTag | null, newWebview: WebviewTag): boolean {
   return !existingWebview || existingWebview !== newWebview
 }

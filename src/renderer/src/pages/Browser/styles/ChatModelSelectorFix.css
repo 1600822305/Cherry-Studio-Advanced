@@ -1,0 +1,44 @@
+/* 浏览器聊天助手模型选择器修复 */
+
+/* 确保弹出层显示在最上层 */
+.chat-sidebar-container .ant-popover,
+.chat-header-buttons-wrapper .ant-popover {
+  z-index: 99999 !important;
+}
+
+/* 针对浏览器聊天模型的弹出层特殊处理 */
+.browser-chat-model-popover {
+  z-index: 99999 !important;
+}
+
+.browser-chat-model-popover .ant-popover-content {
+  z-index: 99999 !important;
+}
+
+.browser-chat-model-popover .ant-popover-inner {
+  z-index: 99999 !important;
+}
+
+/* 确保弹出层内容可见 */
+.chat-sidebar-container .ant-popover-content,
+.chat-header-buttons-wrapper .ant-popover-content {
+  z-index: 99999 !important;
+}
+
+/* 强制下拉菜单在顶层显示 */
+.browser-chat-model-selector .ant-select-dropdown,
+.chat-sidebar-container .ant-select-dropdown {
+  z-index: 99999 !important;
+  position: fixed !important;
+}
+
+/* 确保下拉框选项可点击 */
+.browser-chat-model-selector .ant-select-item,
+.chat-sidebar-container .ant-select-item {
+  pointer-events: auto !important;
+}
+
+/* 确保选择器的内容区域显示在顶层 */
+.model-selector-popover {
+  z-index: 99999 !important;
+} 

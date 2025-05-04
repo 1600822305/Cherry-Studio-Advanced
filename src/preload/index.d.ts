@@ -222,9 +222,12 @@ declare global {
       }
       pdf: {
         splitPDF: (file: FileType, pageRange: string) => Promise<FileType>
-      },
+      }
       moduleManager: {
-        downloadModule: (packageName: string, version?: string) => Promise<{ success: boolean; error?: string; modulePath?: string }>
+        downloadModule: (
+          packageName: string,
+          version?: string
+        ) => Promise<{ success: boolean; error?: string; modulePath?: string }>
         deleteModule: (packageName: string, version?: string) => Promise<{ success: boolean; error?: string }>
         listModules: () => Promise<{ packageName: string; versions: string[] }[]>
         moduleExists: (packageName: string, version?: string) => Promise<boolean>

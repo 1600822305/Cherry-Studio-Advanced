@@ -347,6 +347,54 @@ const thinkTagProcessor: ThoughtProcessor = {
       }
     }
 
+    // 8. 处理JSON格式的思考内容
+    try {
+      // 尝试查找JSON格式的思考标签 - 更健壮的正则表达式
+      const jsonPattern = /(\{\s*["'](?:thinking|thought|reasoning|thoughts|analysis|reflection)["']\s*:[\s\S]*?\})/gi
+
+      const matches = content.match(jsonPattern)
+      if (matches && matches.length > 0) {
+        // 遍历所有匹配项
+        for (const jsonString of matches) {
+          try {
+            const jsonObj = JSON.parse(jsonString)
+            // 尝试从多个可能的键中提取思考内容
+            const keys = ['thinking', 'thought', 'reasoning', 'thoughts', 'analysis', 'reflection']
+            for (const key of keys) {
+              if (jsonObj[key]) {
+                return {
+                  reasoning: jsonObj[key].trim(),
+                  content: content.replace(jsonString, '').trim()
+                }
+              }
+            }
+          } catch (err) {
+            console.log('[thinkTagProcessor] JSON解析错误:', err)
+            // 尝试修复常见的JSON格式问题
+            try {
+              // 处理单引号替换为双引号
+              const fixedJsonString = jsonString.replace(/'/g, '"')
+              const jsonObj = JSON.parse(fixedJsonString)
+
+              const keys = ['thinking', 'thought', 'reasoning', 'thoughts', 'analysis', 'reflection']
+              for (const key of keys) {
+                if (jsonObj[key]) {
+                  return {
+                    reasoning: jsonObj[key].trim(),
+                    content: content.replace(jsonString, '').trim()
+                  }
+                }
+              }
+            } catch (fixError) {
+              console.log('[thinkTagProcessor] 修复JSON失败:', fixError)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.log('[thinkTagProcessor] 处理JSON格式思考标签时出错:', error)
+    }
+
     // 如果没有找到任何匹配，返回原始内容
     return {
       reasoning: '',
@@ -362,16 +410,118 @@ const openaiJsonProcessor: ThoughtProcessor = {
 
     // 检查是否包含OpenAI格式的JSON流式输出特征
     return (
-      content.includes('data: {"id":"chatcmpl-') || content.includes('data: {"id":') || content.includes('data: [DONE]')
+      content.includes('data: {"id":"chatcmpl-') ||
+      content.includes('data: {"id":') ||
+      content.includes('data: [DONE]') ||
+      // 新增对通用流式JSON格式的检测
+      /data:\s*\{.*?"choices":\s*\[\{.*?"delta":\s*\{.*?"content":/i.test(content)
     )
   },
   process: (content: string) => {
     try {
-      // 分割行并提取JSON内容
-      const lines = content.split('\n')
-      let combinedText = ''
+      // 特殊处理您提供的示例格式
+      // 这种格式的特点是分块在多个data行中，且包含think标签
+      if (/data:.*?"delta":\s*\{"content":\s*"<think>.*?\}/i.test(content)) {
+        // 提取所有内容行
+        const contentLines: string[] = []
+        const dataLines = content.split('\n')
+        let hasThinkOpen = false
+        let hasThinkClose = false
+        let reasoning = ''
+        let normalContent = ''
+        let collectingThink = false
 
-      for (const line of lines) {
+        for (const line of dataLines) {
+          if (!line.trim() || line === 'data: [DONE]') continue
+
+          if (line.includes('"content":')) {
+            // 提取content部分
+            const contentMatch = line.match(/"content":\s*"(.*?)(?:"|,$)/)
+            if (contentMatch && contentMatch[1]) {
+              const contentChunk = contentMatch[1]
+                .replace(/\\"/g, '"')
+                .replace(/\\n/g, '\n')
+                .replace(/\\t/g, '\t')
+                .replace(/\\r/g, '')
+
+              contentLines.push(contentChunk)
+
+              // 跟踪思考标签的开始和结束
+              if (contentChunk.includes('<think>')) {
+                hasThinkOpen = true
+                collectingThink = true
+                // 处理可能同时包含起始标签和内容的情况
+                const parts = contentChunk.split('<think>')
+                if (parts.length > 1) {
+                  normalContent += parts[0]
+                  reasoning += parts[1]
+                }
+              } else if (contentChunk.includes('</think>')) {
+                hasThinkClose = true
+                collectingThink = false
+                // 处理可能同时包含结束标签和内容的情况
+                const parts = contentChunk.split('</think>')
+                if (parts.length > 1) {
+                  reasoning += parts[0]
+                  normalContent += parts[1]
+                }
+              } else if (collectingThink) {
+                reasoning += contentChunk
+              } else {
+                normalContent += contentChunk
+              }
+            }
+          }
+        }
+
+        // 如果找到了完整的思考过程
+        if (hasThinkOpen && hasThinkClose && reasoning) {
+          console.log('[openaiJsonProcessor] 成功提取流式思考过程:', reasoning.substring(0, 50))
+          return {
+            reasoning: reasoning.trim(),
+            content: normalContent.trim()
+          }
+        }
+
+        // 组合所有内容,尝试正则提取法
+        const combinedContent = contentLines.join('')
+
+        // 如果包含完整的think标签
+        if (hasThinkOpen && hasThinkClose) {
+          const thinkMatch = combinedContent.match(/<think>([\s\S]*?)<\/think>/i)
+          if (thinkMatch) {
+            return {
+              reasoning: thinkMatch[1].trim(),
+              content: combinedContent.replace(/<think>[\s\S]*?<\/think>/i, '').trim()
+            }
+          }
+        }
+        // 如果只有开始标签
+        else if (hasThinkOpen && !hasThinkClose) {
+          const parts = combinedContent.split(/<think>/i)
+          if (parts.length > 1) {
+            return {
+              reasoning: parts[1].trim(),
+              content: parts[0].trim()
+            }
+          }
+        }
+
+        // 记录内容中的标签信息便于调试
+        console.log('[openaiJsonProcessor] 流式处理状态:', {
+          hasThinkOpen,
+          hasThinkClose,
+          contentLength: combinedContent.length,
+          sampleContent: combinedContent.substring(0, 100)
+        })
+      }
+
+      // 分割行并提取JSON内容
+      const jsonLines = content.split('\n')
+      let combinedText = ''
+      let fullContent = ''
+
+      for (const line of jsonLines) {
         if (line.startsWith('data: ') && line !== 'data: [DONE]') {
           try {
             const jsonStr = line.substring(6)
@@ -383,7 +533,9 @@ const openaiJsonProcessor: ThoughtProcessor = {
               jsonData.choices[0].delta &&
               jsonData.choices[0].delta.content
             ) {
-              combinedText += jsonData.choices[0].delta.content
+              const chunkContent = jsonData.choices[0].delta.content
+              combinedText += chunkContent
+              fullContent += chunkContent
             }
           } catch (e) {
             // 忽略JSON解析错误
@@ -394,74 +546,154 @@ const openaiJsonProcessor: ThoughtProcessor = {
 
       // 如果成功提取了文本，处理思考过程
       if (combinedText) {
-        // 使用与 thinkTagProcessor 相同的处理逻辑来提取思考过程
-        // 处理正常闭合的 think 标签 - 支持多行匹配
-        const thinkPatterns = [
-          /<think>([\s\S]*?)<\/think>/,
-          /<thinking>([\s\S]*?)<\/thinking>/,
-          /<thoughts>([\s\S]*?)<\/thoughts>/,
-          /<thought>([\s\S]*?)<\/thought>/,
-          /<reasoning>([\s\S]*?)<\/reasoning>/,
-          /<reason>([\s\S]*?)<\/reason>/,
-          /<analysis>([\s\S]*?)<\/analysis>/,
-          /<reflection>([\s\S]*?)<\/reflection>/
-        ]
+        // 检查是否是完整的思考过程（有开始和结束标签）
+        const hasOpenTag = /<think>|<thinking>|<thoughts>|<thought>|<reasoning>|<reason>|<analysis>|<reflection>/i.test(
+          combinedText
+        )
+        const hasCloseTag =
+          /<\/think>|<\/thinking>|<\/thoughts>|<\/thought>|<\/reasoning>|<\/reason>|<\/analysis>|<\/reflection>/i.test(
+            combinedText
+          )
 
-        // 尝试匹配所有支持的标签格式
-        for (const pattern of thinkPatterns) {
-          const matches = combinedText.match(pattern)
-          if (matches) {
-            // 完全移除思考标签及其内容，确保不会在内容中重复显示
-            const tagRegex = new RegExp(pattern.source, 'g')
-            return {
-              reasoning: matches[1].trim(),
-              content: combinedText.replace(tagRegex, '').trim()
-            }
-          }
-        }
+        // 完整的思考标签处理
+        if (hasOpenTag && hasCloseTag) {
+          // 使用与 thinkTagProcessor 相同的处理逻辑来提取思考过程
+          // 处理正常闭合的 think 标签 - 支持多行匹配
+          const thinkPatterns = [
+            /<think>([\s\S]*?)<\/think>/i,
+            /<thinking>([\s\S]*?)<\/thinking>/i,
+            /<thoughts>([\s\S]*?)<\/thoughts>/i,
+            /<thought>([\s\S]*?)<\/thought>/i,
+            /<reasoning>([\s\S]*?)<\/reasoning>/i,
+            /<reason>([\s\S]*?)<\/reason>/i,
+            /<analysis>([\s\S]*?)<\/analysis>/i,
+            /<reflection>([\s\S]*?)<\/reflection>/i
+          ]
 
-        // 处理只有结束标签的情况
-        const endTags = [
-          '</think>',
-          '</thinking>',
-          '</thoughts>',
-          '</thought>',
-          '</reasoning>',
-          '</reason>',
-          '</analysis>',
-          '</reflection>'
-        ]
-        for (const endTag of endTags) {
-          if (combinedText.includes(endTag)) {
-            const parts = combinedText.split(endTag)
-            return {
-              reasoning: parts[0].trim(),
-              content: parts.slice(1).join('').trim() // 完全移除结束标签
-            }
-          }
-        }
-
-        // 处理只有开始标签的情况
-        const startTags = [
-          '<think>',
-          '<thinking>',
-          '<thoughts>',
-          '<thought>',
-          '<reasoning>',
-          '<reason>',
-          '<analysis>',
-          '<reflection>'
-        ]
-        for (const startTag of startTags) {
-          if (combinedText.includes(startTag)) {
-            const parts = combinedText.split(startTag)
-            if (parts.length > 1) {
+          // 尝试匹配所有支持的标签格式
+          for (const pattern of thinkPatterns) {
+            const matches = combinedText.match(pattern)
+            if (matches) {
+              // 完全移除思考标签及其内容，确保不会在内容中重复显示
+              const tagRegex = new RegExp(pattern.source, 'gi')
               return {
-                reasoning: parts[1].trim(), // 跳过标签前的内容
-                content: parts[0].trim() // 只保留标签前的内容
+                reasoning: matches[1].trim(),
+                content: combinedText.replace(tagRegex, '').trim()
               }
             }
           }
+        }
+        // 只有开始标签，没有结束标签的情况（所有内容都视为思考）
+        else if (hasOpenTag && !hasCloseTag) {
+          const startTags = [
+            '<think>',
+            '<thinking>',
+            '<thoughts>',
+            '<thought>',
+            '<reasoning>',
+            '<reason>',
+            '<analysis>',
+            '<reflection>'
+          ]
+
+          for (const startTag of startTags) {
+            if (combinedText.toLowerCase().includes(startTag.toLowerCase())) {
+              const parts = combinedText.split(new RegExp(startTag, 'i'))
+              if (parts.length > 1) {
+                return {
+                  reasoning: parts.slice(1).join('').trim(),
+                  content: parts[0].trim()
+                }
+              }
+            }
+          }
+        }
+        // 只有结束标签，没有开始标签的情况（所有内容都视为思考）
+        else if (!hasOpenTag && hasCloseTag) {
+          const endTags = [
+            '</think>',
+            '</thinking>',
+            '</thoughts>',
+            '</thought>',
+            '</reasoning>',
+            '</reason>',
+            '</analysis>',
+            '</reflection>'
+          ]
+
+          for (const endTag of endTags) {
+            if (combinedText.toLowerCase().includes(endTag.toLowerCase())) {
+              const parts = combinedText.split(new RegExp(endTag, 'i'))
+              return {
+                reasoning: parts[0].trim(),
+                content: parts.slice(1).join('').trim()
+              }
+            }
+          }
+        }
+
+        // 检查JSON中是否有完整标签（例如JSON delta中的<think>和</think>）
+        try {
+          // 使用更灵活的方式来查找JSON中的标签
+          if (fullContent.includes('<think>') || fullContent.includes('&lt;think&gt;')) {
+            const processedContent = fullContent.replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+
+            const thinkMatches = processedContent.match(/<think>([\s\S]*?)<\/think>/i)
+            if (thinkMatches) {
+              return {
+                reasoning: thinkMatches[1].trim(),
+                content: processedContent.replace(/<think>[\s\S]*?<\/think>/i, '').trim()
+              }
+            }
+          }
+
+          // 检查流式输出中的JSON思考格式
+          // 例如：{"content": "<think>思考内容</think>"}
+          const combinedJsonData = fullContent.replace(/}{/g, '},{')
+          if (
+            combinedJsonData.includes('{"thinking":') ||
+            combinedJsonData.includes('{"thought":') ||
+            combinedJsonData.includes('"content": "<think>')
+          ) {
+            try {
+              // 尝试识别JSON对象中的思考部分
+              const jsonPattern = /(\{"thinking":|{"thought":|"content":\s*"<think>)([\s\S]*?)(<\/think>"|"})/gi
+              const match = jsonPattern.exec(combinedJsonData)
+
+              if (match && match[2]) {
+                // 清理提取的思考内容
+                const reasoning = match[2]
+                  .replace(/<think>|<\/think>/gi, '')
+                  .replace(/^"|"$/g, '')
+                  .replace(/\\"/g, '"')
+                  .replace(/\\n/g, '\n')
+                  .trim()
+
+                return {
+                  reasoning: reasoning,
+                  content: fullContent.replace(match[0], '').trim()
+                }
+              }
+
+              // 特别处理流式分块的情况
+              if (combinedJsonData.includes('"content": "<think>')) {
+                const startIndex = combinedJsonData.indexOf('"content": "<think>') + 13
+                const endIndex = combinedJsonData.indexOf('</think>"', startIndex)
+
+                if (startIndex > 13 && endIndex > startIndex) {
+                  const reasoning = combinedJsonData.substring(startIndex + 7, endIndex).trim()
+                  return {
+                    reasoning: reasoning,
+                    content: fullContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
+                  }
+                }
+              }
+            } catch (err) {
+              console.log('[openaiJsonProcessor] 处理JSON思考格式出错:', err)
+            }
+          }
+        } catch (error) {
+          console.log('[openaiJsonProcessor] 处理JSON中的标签时出错:', error)
         }
 
         // 处理各种中文思考过程标记格式
@@ -529,6 +761,77 @@ const openaiJsonProcessor: ThoughtProcessor = {
   }
 }
 
+// 添加一个新的处理器，专门处理JSON格式的思考标签
+const jsonThoughtProcessor: ThoughtProcessor = {
+  canProcess: (content: string, message?: Message) => {
+    if (!message) return false
+
+    // 检查是否包含JSON格式的思考标签
+    const hasJsonThinking = /\{\s*["'](?:thinking|thought|reasoning|thoughts|analysis|reflection)["']\s*:/i.test(
+      content
+    )
+    return hasJsonThinking
+  },
+  process: (content: string) => {
+    try {
+      // 尝试查找JSON格式的思考标签 - 更健壮的正则表达式
+      const jsonPattern = /(\{\s*["'](?:thinking|thought|reasoning|thoughts|analysis|reflection)["']\s*:[\s\S]*?\})/gi
+
+      const matches = content.match(jsonPattern)
+      if (matches && matches.length > 0) {
+        // 遍历所有匹配项
+        for (const jsonString of matches) {
+          try {
+            const jsonObj = JSON.parse(jsonString)
+            // 尝试从多个可能的键中提取思考内容
+            const keys = ['thinking', 'thought', 'reasoning', 'thoughts', 'analysis', 'reflection']
+            for (const key of keys) {
+              if (jsonObj[key]) {
+                return {
+                  reasoning: jsonObj[key].trim(),
+                  content: content.replace(jsonString, '').trim()
+                }
+              }
+            }
+          } catch (err) {
+            console.log('[jsonThoughtProcessor] JSON解析错误:', err)
+            // 尝试修复常见的JSON格式问题
+            try {
+              // 处理单引号替换为双引号
+              const fixedJsonString = jsonString.replace(/'/g, '"')
+              const jsonObj = JSON.parse(fixedJsonString)
+
+              const keys = ['thinking', 'thought', 'reasoning', 'thoughts', 'analysis', 'reflection']
+              for (const key of keys) {
+                if (jsonObj[key]) {
+                  return {
+                    reasoning: jsonObj[key].trim(),
+                    content: content.replace(jsonString, '').trim()
+                  }
+                }
+              }
+            } catch (fixError) {
+              console.log('[jsonThoughtProcessor] 修复JSON失败:', fixError)
+            }
+          }
+        }
+      }
+
+      // 如果没有找到任何匹配，返回原始内容
+      return {
+        reasoning: '',
+        content
+      }
+    } catch (error) {
+      console.error('[jsonThoughtProcessor] 处理JSON格式思考标签时出错:', error)
+      return {
+        reasoning: '',
+        content
+      }
+    }
+  }
+}
+
 export function withMessageThought(message: Message) {
   if (message.role !== 'assistant') {
     return message
@@ -549,22 +852,70 @@ export function withMessageThought(message: Message) {
     if (!assistant?.settings?.reasoning_effort) return message
   }
 
-  const content = message.content.trim()
-  // 添加新的处理器到处理器列表
-  const processors: ThoughtProcessor[] = [openaiJsonProcessor, glmZeroPreviewProcessor, thinkTagProcessor]
+  // 获取原始内容并处理
+  const originalContent = message.content.trim()
+
+  // === 1. 首先尝试直接提取<think>标签 ===
+  const thinkPattern = /<think>([\s\S]*?)<\/think>/i
+  const thinkMatch = originalContent.match(thinkPattern)
+
+  if (thinkMatch) {
+    // 找到匹配，提取思考内容并清理消息
+    const reasoning = thinkMatch[1].trim()
+    // 完全移除思考标签及其内容
+    const cleanContent = originalContent.replace(thinkPattern, '').trim()
+
+    // 显式设置两个属性
+    message.reasoning_content = reasoning
+    message.content = cleanContent
+
+    console.log(
+      '[withMessageThought] 直接提取到思考过程:',
+      reasoning.substring(0, 50) + (reasoning.length > 50 ? '...' : '')
+    )
+
+    return message
+  }
+
+  // === 2. 如果没有找到直接标签，尝试其他处理器 ===
+  const processors: ThoughtProcessor[] = [
+    openaiJsonProcessor,
+    glmZeroPreviewProcessor,
+    jsonThoughtProcessor,
+    thinkTagProcessor
+  ]
 
   // 尝试使用所有处理器提取思考过程
   for (const processor of processors) {
-    if (processor.canProcess(content, message)) {
-      const { reasoning, content: processedContent } = processor.process(content)
+    if (processor.canProcess(originalContent, message)) {
+      const { reasoning, content: processedContent } = processor.process(originalContent)
 
       // 只有当成功提取到思考过程时才更新消息
       if (reasoning) {
+        // 同时设置两个属性，确保内容不重复
         message.reasoning_content = reasoning
         message.content = processedContent
+        console.log('[withMessageThought] 提取到思考过程通过处理器:', processor.constructor?.name)
         break // 一旦找到匹配的处理器并成功提取，就停止处理
       }
     }
+  }
+
+  // === 3. 安全检查：确保内容不包含思考标签 ===
+  // 如果内容仍然包含思考标签，强制清理
+  if (message.content && thinkPattern.test(message.content)) {
+    const cleanContent = message.content.replace(thinkPattern, '').trim()
+    console.log('[withMessageThought] 强制清理残留的思考标签')
+    message.content = cleanContent
+  }
+
+  // === 4. 处理可能的片段思考标签 ===
+  // 处理可能的不完整标签
+  const partialOpenTag = /<think>/i
+  const partialCloseTag = /<\/think>/i
+  if (message.content && (partialOpenTag.test(message.content) || partialCloseTag.test(message.content))) {
+    console.log('[withMessageThought] 发现并清理不完整的思考标签')
+    message.content = message.content.replace(partialOpenTag, '').replace(partialCloseTag, '').trim()
   }
 
   return message

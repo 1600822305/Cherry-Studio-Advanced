@@ -35,6 +35,10 @@ const pluginSystemSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload
     },
+    clearPlugins: (state) => {
+      state.plugins = {}
+      state.extensionPoints = {}
+    },
     registerPlugin: (state, action: PayloadAction<Plugin>) => {
       const plugin = action.payload
       state.plugins[plugin.id] = plugin
@@ -128,6 +132,7 @@ const pluginSystemSlice = createSlice({
 export const {
   setLoading,
   setError,
+  clearPlugins,
   registerPlugin,
   unregisterPlugin,
   enablePlugin,

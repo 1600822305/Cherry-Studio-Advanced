@@ -16,6 +16,7 @@ import { modelGenerating } from '@renderer/hooks/useRuntime'
 import { useSettings } from '@renderer/hooks/useSettings'
 import AssistantSettingsPopup from '@renderer/pages/settings/AssistantSettings'
 import { getDefaultModel, getDefaultTopic } from '@renderer/services/AssistantService'
+import { isBrowserChatAssistant } from '@renderer/services/BrowserChatSyncService'
 import { EVENT_NAMES, EventEmitter } from '@renderer/services/EventService'
 import { Assistant } from '@renderer/types'
 import { uuid } from '@renderer/utils'
@@ -222,7 +223,12 @@ const AssistantItem: FC<AssistantItemProps> = ({ assistant, isActive, onSwitch, 
               />
             )
           )}
-          <AssistantName className="text-nowrap">{assistantName}</AssistantName>
+          <AssistantName className="text-nowrap">
+            {isBrowserChatAssistant(assistant.id) && (
+              <i className="iconfont icon-global" style={{ marginRight: '5px', fontSize: '14px' }} />
+            )}
+            {assistantName}
+          </AssistantName>
         </AssistantNameRow>
         {isActive && (
           <MenuButton onClick={() => EventEmitter.emit(EVENT_NAMES.SWITCH_TOPIC_SIDEBAR)}>

@@ -69,7 +69,6 @@ function withCache<T extends unknown[], R>(
 
 class McpService {
   private clients: Map<string, Client> = new Map()
-
   private getServerKey(server: MCPServer): string {
     return JSON.stringify({
       baseUrl: server.baseUrl,
@@ -310,14 +309,16 @@ class McpService {
   async closeClient(serverKey: string) {
     const client = this.clients.get(serverKey)
     if (client) {
-      // Remove the client from the cache
-      await client.close()
-      Logger.info(`[MCP] Closed server: ${serverKey}`)
+      try {
+        // 使用transport关闭连接
+        const transport = (client as any)._transport
+        if (transport && typeof transport.close === 'function') {
+          await transport.close()
+        }
+      } catch (error) {
+        Logger.error(`[MCP] Error disconnecting client:`, error)
+      }
       this.clients.delete(serverKey)
-      CacheService.remove(`mcp:list_tool:${serverKey}`)
-      Logger.info(`[MCP] Cleared cache for server: ${serverKey}`)
-    } else {
-      Logger.warn(`[MCP] No client found for server: ${serverKey}`)
     }
   }
 
@@ -368,60 +369,83 @@ class McpService {
   }
 
   private async listToolsImpl(server: MCPServer): Promise<MCPTool[]> {
-    Logger.info(`[MCP] Listing tools for server: ${server.name}`)
-    const client = await this.initClient(server)
     try {
-      const { tools } = await client.listTools()
-      const serverTools: MCPTool[] = tools.map((tool: any) => {
-        // Generate the descriptive toolKey
-        const toolKey = `${server.id}-${tool.name}` // Combine server ID and tool name
-        const serverTool: MCPTool = {
-          ...tool,
-          id: `${tool.name}`, // Use tool name as stable ID
-          serverId: server.id,
-          serverName: server.name,
-          toolKey: toolKey // Add the generated toolKey
-        }
-        return serverTool
-      })
-      return serverTools
+      const client = await this.initClient(server)
+
+      // 使用listTools方法替代tools.list
+      const result = await client.listTools()
+      const toolsList = result.tools || []
+
+      // 转换工具列表为内部格式
+      return toolsList.map((tool: any) => ({
+        id: tool.name,
+        name: tool.name,
+        description: tool.description || '',
+        icon: tool.icon,
+        inputSchema: tool.parameters,
+        serverId: server.id,
+        serverName: server.name,
+        toolKey: `${server.id}-${tool.name}`
+      }))
     } catch (error) {
-      Logger.error(`[MCP] Failed to list tools for server: ${server.name}`, error)
+      Logger.error(`[MCP] Error listing tools for server ${server.name}:`, error)
       return []
     }
   }
 
-  async listTools(_: Electron.IpcMainInvokeEvent, server: MCPServer) {
-    const cachedListTools = withCache<[MCPServer], MCPTool[]>(
-      this.listToolsImpl.bind(this),
-      (server) => {
-        const serverKey = this.getServerKey(server)
-        return `mcp:list_tool:${serverKey}`
-      },
-      5 * 60 * 1000, // 5 minutes TTL
-      `[MCP] Tools from ${server.name}`
-    )
+  // 缓存工具列表的包装方法
+  private listToolsCached = withCache(
+    this.listToolsImpl.bind(this),
+    (server: MCPServer) => `tools-list-${server.id}`,
+    1000 * 60 * 5, // 5 minutes cache
+    '[MCP] Tools list'
+  )
 
-    return cachedListTools(server)
+  async listTools(_: Electron.IpcMainInvokeEvent, server: MCPServer) {
+    if (!server) {
+      // 如果未提供服务器，只返回空数组（不再支持本地工具）
+      return []
+    }
+
+    try {
+      const mcpTools = await this.listToolsCached(server)
+      return mcpTools
+    } catch (error) {
+      Logger.error(`[MCP] Error listing tools for server ${server?.name}:`, error)
+      return []
+    }
   }
 
-  /**
-   * Call a tool on an MCP server
-   */
   public async callTool(
     _: Electron.IpcMainInvokeEvent,
     { server, name, args }: { server: MCPServer; name: string; args: any }
   ): Promise<MCPCallToolResponse> {
     try {
-      Logger.info('[MCP] Calling:', server.name, name, args)
+      // 调用MCP服务器工具
       const client = await this.initClient(server)
-      const result = await client.callTool({ name, arguments: args }, undefined, {
-        timeout: server.timeout ? server.timeout * 1000 : 60000 // Default timeout of 1 minute
-      })
-      return result as MCPCallToolResponse
+      const toolResult = await client.callTool({ name, arguments: args || {} })
+
+      // 转换为MCPCallToolResponse格式
+      return {
+        isError: false,
+        content: (toolResult.content as any) || [
+          {
+            type: 'text',
+            text: JSON.stringify(toolResult)
+          }
+        ]
+      }
     } catch (error) {
-      Logger.error(`[MCP] Error calling tool ${name} on ${server.name}:`, error)
-      throw error
+      Logger.error(`[MCP] Error calling tool ${name}:`, error)
+      return {
+        isError: true,
+        content: [
+          {
+            type: 'text',
+            text: `Error calling tool ${name}: ${error}`
+          }
+        ]
+      }
     }
   }
 
@@ -594,78 +618,65 @@ class McpService {
     event: Electron.IpcMainInvokeEvent,
     messageId: string,
     toolCallId: string,
-    server: MCPServer, // Changed from serverId: string to server: MCPServer
+    server: MCPServer,
     toolName: string,
     args: Record<string, any>
   ): Promise<void> => {
-    // Use the passed server object directly
-    const serverConfig = server // Rename for clarity, or just use 'server' directly
+    // 创建一个 EventEmitter 用于发送更新
+    const emitter = new EventEmitter()
 
-    Logger.info(
-      `[MCP] Rerunning tool call ${toolCallId} (Server: ${serverConfig.name} [${serverConfig.id}], Tool: ${toolName}) for message ${messageId} with args:`,
-      args
-    )
+    // 监听更新事件并发送到渲染进程
+    const updateListener = (update: any) => {
+      event.sender.send(IpcChannel.Mcp_ToolRerunUpdate, update)
+    }
+    emitter.on('update', updateListener)
 
-    // Server lookup logic is removed as the server object is passed directly
-
-    // Send 'rerunning' status update to renderer
-    event.sender.send(IpcChannel.Mcp_ToolRerunUpdate, {
-      messageId,
-      toolCallId,
-      status: 'rerunning',
-      args // Include the new args being used
-    })
-
-    // 3. Call the tool
     try {
-      // Note: this.callTool expects the event as the first argument, but it's not strictly needed
-      // for the core logic here. Passing null or a placeholder if the original event isn't required.
-      // However, callTool itself might need the event if it sends updates. Let's pass the event.
-      const result = await this.callTool(event, { server: serverConfig, name: toolName, args })
+      // 通知渲染进程工具开始重新运行
+      emitter.emit('update', {
+        messageId,
+        toolCallId,
+        status: 'rerunning',
+        args
+      })
 
-      // 4. Send 'done' status update with the result
-      event.sender.send(IpcChannel.Mcp_ToolRerunUpdate, {
+      // 调用MCP服务器工具
+      const client = await this.initClient(server)
+      const toolResult = await client.callTool({ name: toolName, arguments: args || {} })
+
+      // 转换为MCPCallToolResponse格式
+      const result = {
+        isError: false,
+        content: (toolResult.content as any) || [
+          {
+            type: 'text',
+            text: JSON.stringify(toolResult)
+          }
+        ]
+      }
+
+      // 通知渲染进程工具调用完成
+      emitter.emit('update', {
         messageId,
         toolCallId,
         status: 'done',
-        response: result // Send the actual tool response
+        args,
+        response: result
       })
-      Logger.info(`[MCP] Rerun successful for tool call ${toolCallId}`)
-    } catch (error: any) {
-      Logger.error(`[MCP] Error rerunning tool ${toolName} on ${serverConfig.name}:`, error)
-      // 5. Send 'error' status update
-      event.sender.send(IpcChannel.Mcp_ToolRerunUpdate, {
+    } catch (error) {
+      Logger.error(`[MCP] Error rerunning tool ${toolName}:`, error)
+      // 通知渲染进程出现错误
+      emitter.emit('update', {
         messageId,
         toolCallId,
         status: 'error',
-        error: error.message || String(error) // Send error message
+        args,
+        error: `Error rerunning tool ${toolName}: ${error}`
       })
+    } finally {
+      // 移除监听器以防止内存泄漏
+      emitter.removeListener('update', updateListener)
     }
-
-    // Original placeholder logic removed
-    /* const message = findMessageById(messageId); // Hypothetical function
-    const toolCall = message?.metadata?.mcpTools?.find(tc => tc.id === toolCallId);
-    if (toolCall && toolCall.tool) {
-        const serverConfig = findServerById(toolCall.tool.serverId); // Hypothetical function
-        if (serverConfig) {
-            try {
-                const result = await this.callTool(null, { server: serverConfig, name: toolCall.tool.name, args });
-                // Send result back to renderer to update the specific tool call in the message
-                // mainWindow?.webContents.send('mcp:toolRerunCompleted', messageId, toolCallId, result);
-            } catch (error) {
-                Logger.error(`[MCP] Error rerunning tool ${toolCall.tool.name}:`, error);
-                // Send error back to renderer
-                // mainWindow?.webContents.send('mcp:toolRerunFailed', messageId, toolCallId, error);
-            }
-        } else {
-             Logger.error(`[MCP] Server not found for tool call ${toolCallId}`);
-        }
-    } else {
-        Logger.error(`[MCP] Original tool call ${toolCallId} not found for message ${messageId}`);
-    }
-    */
-    // For now, just log and return
-    return Promise.resolve()
   }
 
   private getSystemPath = memoize(async (): Promise<string> => {

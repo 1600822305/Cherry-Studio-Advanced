@@ -29,6 +29,40 @@ interface Props {
 const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
   const { t } = useTranslation()
   const message = withMessageThought(clone(_message))
+
+  // 直接检查是否存在<think>标签，确保不会重复显示
+  useEffect(() => {
+    // 如果消息已有ID和topicID（持久化消息）
+    if (message.id && message.topicId) {
+      const thinkPattern = /<think>([\s\S]*?)<\/think>/i
+      const origContent = message.content || ''
+
+      // 如果思考内容已存在于消息对象中，但思考标签仍在消息内容中
+      if (thinkPattern.test(origContent)) {
+        // 清理消息内容，移除思考标签及其内容
+        const cleanContent = origContent.replace(thinkPattern, '').trim()
+
+        // 确保内容有变化才更新
+        if (cleanContent !== origContent) {
+          console.log('[MessageContent] 发现内容中包含思考标签，执行清理')
+          // 更新到全局状态
+          setTimeout(() => {
+            try {
+              window.api.store.dispatch(
+                window.api.store.updateMessageThunk(message.topicId!, message.id!, {
+                  content: cleanContent
+                })
+              )
+              console.log('[MessageContent] 已清理消息中的思考标签，避免重复显示')
+            } catch (error) {
+              console.error('[MessageContent] 更新全局状态失败:', error)
+            }
+          }, 0)
+        }
+      }
+    }
+  }, [message.id, message.topicId, message.content])
+
   const isWebCitation = model && (isOpenAIWebSearch(model) || model.provider === 'openrouter')
   const [isSegmentedPlayback, setIsSegmentedPlayback] = useState(false)
 
@@ -608,7 +642,7 @@ const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
     // 如果有工具响应，检查每个工具的ID和名称
     if (toolResponses.length > 0) {
       console.log('[MessageContent] Tool IDs and names:')
-      toolResponses.forEach(tr => {
+      toolResponses.forEach((tr) => {
         console.log(`- Tool ID: ${tr.id}, Tool Name: ${tr.tool.name}, Server: ${tr.tool.serverName}`)
       })
     }
@@ -629,7 +663,15 @@ const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
         // 3. Gemini特定格式 - 直接使用函数名作为标签
         /<(?:get_current_time|search|calculate|get_weather|query_database)(?:\s+[^>]*)?>([\s\S]*?)<\/(?:get_current_time|search|calculate|get_weather|query_database)>/gi,
 
-        // 4. 工具名称直接作为标签 (基于已注册的工具)
+        // 4. Gemini特定占位符格式
+        // 这个模式匹配GeminiProvider中生成的特殊占位符
+        // GeminiProvider在检测到函数调用时会发送这个占位符文本，而不是空文本
+        // 格式: <tool_placeholder id="functionName_timestamp"></tool_placeholder>
+        // 作用: 提供准确的位置标记，使工具块能在正确位置渲染
+        // 如果没有这个占位符，工具块会默认放在内容开头或结尾，而不是实际函数调用位置
+        /<tool_placeholder\s+id="([^"]+)"><\/tool_placeholder>/gi,
+
+        // 5. 工具名称直接作为标签 (基于已注册的工具)
         ...toolResponses.map(
           (tr) => new RegExp(`<${tr.tool.id}(?:\\s+[^>]*)?>(\\s*[\\s\\S]*?)<\\/${tr.tool.id}>`, 'gi')
         )
@@ -771,44 +813,54 @@ const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
             content = additionalBlocks
           } else {
             // 寻找适合插入工具块的位置
-            const sentences = content.split(/([.!?。！？]+\s*)/).filter(s => s.trim());
+            const sentences = content.split(/([.!?。！？]+\s*)/).filter((s) => s.trim())
 
             // 如果有足够的句子，尝试在第一句话后插入
             if (sentences.length >= 2) {
               // 找到第一个句子结束的位置
-              let insertPosition = 0;
-              let firstSentence = sentences[0] + (sentences[1].match(/[.!?。！？]+\s*/) ? sentences[1] : '');
-              insertPosition = content.indexOf(firstSentence) + firstSentence.length;
+              let insertPosition = 0
+              const firstSentence = sentences[0] + (sentences[1].match(/[.!?。！？]+\s*/) ? sentences[1] : '')
+              insertPosition = content.indexOf(firstSentence) + firstSentence.length
 
               // 在第一句话之后插入工具块
-              content = content.substring(0, insertPosition) + '\n\n' + additionalBlocks + '\n\n' + content.substring(insertPosition);
-              console.log(`[MessageContent] Inserted tool blocks after first sentence at position ${insertPosition}`);
+              content =
+                content.substring(0, insertPosition) +
+                '\n\n' +
+                additionalBlocks +
+                '\n\n' +
+                content.substring(insertPosition)
+              console.log(`[MessageContent] Inserted tool blocks after first sentence at position ${insertPosition}`)
             }
             // 如果找不到合适的句子，检查是否有"稍等"、"请稍等"等提示词
             else if (content.match(/稍等|请稍等|等一下|查询|搜索|检索|查找|让我|我来|正在/i)) {
-              const waitPhrases = ['稍等', '请稍等', '等一下', '查询', '搜索', '检索', '查找', '让我', '我来', '正在'];
-              let insertPosition = content.length;
+              const waitPhrases = ['稍等', '请稍等', '等一下', '查询', '搜索', '检索', '查找', '让我', '我来', '正在']
+              let insertPosition = content.length
 
               for (const phrase of waitPhrases) {
-                const phrasePosition = content.indexOf(phrase);
+                const phrasePosition = content.indexOf(phrase)
                 if (phrasePosition !== -1) {
                   // 找到包含提示词的句子结束位置
-                  const sentenceEnd = content.substring(phrasePosition).search(/[.!?。！？]+\s*/);
+                  const sentenceEnd = content.substring(phrasePosition).search(/[.!?。！？]+\s*/)
                   if (sentenceEnd !== -1) {
-                    insertPosition = phrasePosition + sentenceEnd + 1; // +1 包含标点符号
-                    break;
+                    insertPosition = phrasePosition + sentenceEnd + 1 // +1 包含标点符号
+                    break
                   }
                 }
               }
 
               // 在提示词句子后插入工具块
-              content = content.substring(0, insertPosition) + '\n\n' + additionalBlocks + '\n\n' + content.substring(insertPosition);
-              console.log(`[MessageContent] Inserted tool blocks after waiting phrase at position ${insertPosition}`);
+              content =
+                content.substring(0, insertPosition) +
+                '\n\n' +
+                additionalBlocks +
+                '\n\n' +
+                content.substring(insertPosition)
+              console.log(`[MessageContent] Inserted tool blocks after waiting phrase at position ${insertPosition}`)
             }
             // 如果没有找到合适的位置，则放在开头
             else {
-              content = additionalBlocks + '\n\n' + content;
-              console.log('[MessageContent] No suitable insertion point found, added tool blocks at the beginning');
+              content = additionalBlocks + '\n\n' + content
+              console.log('[MessageContent] No suitable insertion point found, added tool blocks at the beginning')
             }
           }
         }
@@ -827,6 +879,8 @@ const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
     citationsData,
     decodeHTML // 添加decodeHTML函数作为依赖
   ])
+
+  // 工具调用结果在Markdown组件中渲染
 
   if (message.status === 'sending') {
     return (
@@ -1227,6 +1281,8 @@ const referenceStyles = `
   }
 `
 
+// 工具块样式已直接添加到文档中
+
 // 将样式添加到文档中
 try {
   if (typeof document !== 'undefined') {
@@ -1241,6 +1297,13 @@ try {
           .message-content-tools {
             margin-top: 5px; /* 进一步减少顶部间距 */
             margin-bottom: 2px; /* 进一步减少底部间距 */
+          }
+
+          /* 确保消息内容可以被正常选择 */
+          .markdown, .markdown * {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+            pointer-events: auto !important;
           }
 
           /* 引用标记样式 */
@@ -1291,12 +1354,41 @@ try {
             margin-bottom: 16px;
             display: block;
           }
-          
+
           /* 防止段落内容包含块级元素的样式问题 */
           p > tool-block {
             display: block;
             margin-top: 16px;
             margin-bottom: 0;
+          }
+
+          /* 工具块独立气泡效果 */
+          .separated-tool-block {
+            margin: 20px 0;
+            padding-bottom: 5px;
+            position: relative;
+          }
+
+          /* 工具块间分隔线 */
+          .separated-tool-block + .separated-tool-block {
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--color-border);
+          }
+
+          /* 在工具块上方添加独立标记 */
+          .separated-tool-block::before {
+            content: "⚙️ 工具执行";
+            position: absolute;
+            top: -20px;
+            left: 10px;
+            font-size: 12px;
+            color: var(--color-text-2);
+            background: var(--color-bg-1);
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            z-index: 2;
           }
         `
       document.head.appendChild(styleElement)

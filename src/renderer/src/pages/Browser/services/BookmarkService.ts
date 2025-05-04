@@ -1,5 +1,6 @@
 import { db } from '@renderer/databases'
 import { v4 as uuidv4 } from 'uuid'
+
 import { Bookmark, BookmarkFolder, BookmarkTreeNode } from '../types/bookmark'
 
 /**
@@ -15,12 +16,7 @@ class BookmarkService {
    * @param parentId 父文件夹ID，null表示根目录
    * @returns 新创建的书签
    */
-  async addBookmark(
-    title: string,
-    url: string,
-    favicon?: string,
-    parentId: string | null = null
-  ): Promise<Bookmark> {
+  async addBookmark(title: string, url: string, favicon?: string, parentId: string | null = null): Promise<Bookmark> {
     const now = new Date().toISOString()
     const bookmark: Bookmark = {
       id: uuidv4(),
@@ -97,7 +93,7 @@ class BookmarkService {
     if (folderId === null) {
       // 获取所有书签，然后过滤出 parentId 为 null 的书签
       const allBookmarks = await db.bookmarks.toArray()
-      return allBookmarks.filter(bookmark => bookmark.parentId === null)
+      return allBookmarks.filter((bookmark) => bookmark.parentId === null)
     }
     return db.bookmarks.where('parentId').equals(folderId).toArray()
   }
@@ -202,7 +198,7 @@ class BookmarkService {
     if (parentId === null) {
       // 获取所有文件夹，然后过滤出 parentId 为 null 的文件夹
       const allFolders = await db.bookmark_folders.toArray()
-      return allFolders.filter(folder => folder.parentId === null)
+      return allFolders.filter((folder) => folder.parentId === null)
     }
     return db.bookmark_folders.where('parentId').equals(parentId).toArray()
   }
@@ -322,9 +318,7 @@ class BookmarkService {
     const bookmarks = await this.getAllBookmarks()
 
     return bookmarks.filter(
-      bookmark =>
-        bookmark.title.toLowerCase().includes(lowerQuery) ||
-        bookmark.url.toLowerCase().includes(lowerQuery)
+      (bookmark) => bookmark.title.toLowerCase().includes(lowerQuery) || bookmark.url.toLowerCase().includes(lowerQuery)
     )
   }
 }

@@ -54,7 +54,8 @@ import {
   geminiFunctionCallToMcpTool, // Re-add import
   mcpToolCallResponseToGeminiFunctionResponsePart, // Re-add import
   mcpToolsToGeminiTools, // Import for UI updates
-  upsertMCPToolResponse // Re-add import
+  upsertMCPToolResponse, // Re-add import
+  parseToolUse
 } from '@renderer/utils/mcp-tools'
 import { buildSystemPrompt } from '@renderer/utils/prompt'
 import { MB } from '@shared/config/constant'
@@ -365,6 +366,19 @@ export default class GeminiProvider extends BaseProvider {
       )
     }
 
+    // 检查是否是恢复的会话(重启后打开的旧会话)
+    const isRestoredSession = messages.length > 1 && window.keyv.get('APP_JUST_STARTED') === true;
+
+    // 如果是刚启动应用，标记应用已启动
+    if (window.keyv.get('APP_JUST_STARTED') === true) {
+      window.keyv.set('APP_JUST_STARTED', false);
+      console.log('[GeminiProvider] 应用刚刚启动，可能需要特殊处理恢复的会话');
+    }
+
+    if (isRestoredSession) {
+      console.log('[GeminiProvider] 检测到恢复的会话，确保工具调用处理正确');
+    }
+
     if (assistant.enableGenerateImage) {
       await this.generateImageExp({ messages, assistant, onFilterMessages, onChunk })
     } else {
@@ -404,8 +418,20 @@ export default class GeminiProvider extends BaseProvider {
         systemInstruction = await buildSystemPrompt(enhancedPrompt, mcpTools, getActiveServers(store.getState()))
       }
 
-      // Format MCP tools for Gemini native function calling
-      const tools = mcpToolsToGeminiTools(mcpTools)
+      // 检查是否使用Gemini的函数调用
+      const useGeminiPromptForToolCalling = store.getState().settings.useGeminiPromptForToolCalling
+
+      // Format MCP tools for Gemini native function calling, only if not using prompt-based tool calling
+      let tools: any[] = []
+      if (!useGeminiPromptForToolCalling && mcpTools && mcpTools.length > 0) {
+        tools = mcpToolsToGeminiTools(mcpTools)
+        console.log('[GeminiProvider] 使用函数调用方式调用MCP工具')
+      } else if (mcpTools && mcpTools.length > 0) {
+        console.log('[GeminiProvider] 使用提示词方式调用MCP工具')
+        // 使用空数组，不添加工具
+        tools = []
+      }
+
       const toolResponses: MCPToolResponse[] = [] // Re-add for UI updates
 
       if (!WebSearchService.isOverwriteEnabled() && assistant.enableWebSearch && isWebSearchModel(model)) {
@@ -510,8 +536,9 @@ export default class GeminiProvider extends BaseProvider {
         stream: GenerateContentStreamResult,
         toolCallCount: number = 0,
         isFirstCall: boolean = true,
-        previousToolResponses: { functionCall: any; response: any }[] = []
-      ) => {
+        // 注意：previousToolResponses参数未使用，但保留参数以保持接口兼容性
+        _previousToolResponses: { functionCall: any; response: any }[] = []
+      ): Promise<void> => {
         // 检查是否超过最大工具调用次数
         if (toolCallCount >= MAX_TOOL_CALLS) {
           console.warn(`[GeminiProvider] 达到最大工具调用次数限制 (${MAX_TOOL_CALLS})，停止处理更多工具调用`)
@@ -544,20 +571,34 @@ export default class GeminiProvider extends BaseProvider {
           if (functionCalls && functionCalls.length > 0) {
             // 存储函数调用部分以供后续处理
             functionCallParts = [{ functionCall: functionCalls[0] }]
-            
-            // 在文本中插入XML标记，以便MessageContent可以识别和渲染
-            const functionCall = functionCalls[0];
-            // 获取函数名称
-            const toolName = functionCall.name;
-            // 创建像Claude那样的XML格式工具调用标记
-            const toolXML = "<tool_use><name>" + toolName + "</name><arguments>" + JSON.stringify(functionCall.args || {}) + "</arguments></tool_use>";
-            
-            // 在原始文本后添加工具XML
-            const textWithToolXML = chunkText + toolXML;
-            
-            // 发送带有工具XML的文本块
+
+            // 直接传递原生函数调用对象给UI渲染组件，不转换为XML
+            const functionCall = functionCalls[0]
+
+            // !!!重要!!! 创建一个特殊的占位符，包含唯一ID
+            // 使用占位符而不是空文本是为了解决工具块定位问题
+            // 如果发送空文本，UI无法确定在哪里插入工具块
+            // 占位符提供了明确的位置标记，确保工具块在正确位置渲染
+            const placeholderId = `${functionCall.name}_${Date.now()}`
+            const placeholderText = `<tool_placeholder id="${placeholderId}"></tool_placeholder>`
+
+            // 发送原生函数调用格式，添加geminiFunctionCall标记表明这是Gemini函数调用
             onChunk({
-              text: textWithToolXML,
+              text: placeholderText, // 使用占位符而不是空文本，确保UI能在正确位置渲染工具块
+              geminiFunctionCall: {
+                // 添加一个新的属性传递Gemini函数调用信息
+                name: functionCall.name,
+                args: functionCall.args || {},
+                placeholderId // 也将占位符ID添加到元数据中，便于在UI层关联占位符和函数调用
+              },
+              metadata: {
+                // 在消息的metadata中也添加geminiFunctionCall信息
+                geminiFunctionCall: {
+                  name: functionCall.name,
+                  args: functionCall.args || {},
+                  placeholderId // 保持一致性，在metadata中也包含占位符ID
+                }
+              },
               usage: {
                 prompt_tokens: chunk.usageMetadata?.promptTokenCount || 0,
                 completion_tokens: chunk.usageMetadata?.candidatesTokenCount || 0,
@@ -569,11 +610,11 @@ export default class GeminiProvider extends BaseProvider {
                 time_first_token_millsec
               },
               search: chunk.candidates?.[0]?.groundingMetadata,
-              mcpToolResponse: toolResponses // 传递更新的工具响应到UI
-            });
-            
-            // 已经发送了带工具XML的文本块，不需要再次发送
-            continue;
+              mcpToolResponse: toolResponses
+            })
+
+            // 继续循环，不添加XML到聚合文本
+            continue
           }
 
           // 发送文本块到UI
@@ -620,7 +661,6 @@ export default class GeminiProvider extends BaseProvider {
             )
 
             // 检查是否启用了Agent模式
-            const isAgentMode = store.getState().settings.enableAgentMode
             let toolResponse: MCPCallToolResponse
 
             if (isAgentMode) {
@@ -655,12 +695,26 @@ export default class GeminiProvider extends BaseProvider {
             const truncatedResponse = this.truncateToolResponse(toolResponse)
             console.log('[GeminiProvider] 收到MCP工具响应:', JSON.stringify(truncatedResponse, null, 2))
 
-            // --- UI更新: 标记工具为完成 ---
+            // --- UI更新: 标记工具为完成，添加单独更新工具块的标记 ---
             upsertMCPToolResponse(
               toolResponses,
               { id: toolCallIdForUI, tool: mcpToolToCall, args: actualArgs, status: 'done', response: toolResponse },
-              onChunk
+              (chunkData) => {
+                // 使用metadata传递工具块更新标记
+                onChunk({
+                  ...chunkData,
+                  metadata: {
+                    ...(chunkData.metadata || {}),
+                    updateToolBlockOnly: true // 指示前端只更新工具块，不刷新整个聊天
+                  }
+                });
+              }
             )
+
+            // 添加1秒延迟，让用户有时间查看工具执行结果
+            // 这样提高用户体验，避免结果显示太快用户来不及查看
+            console.log(`[GeminiProvider] 等待1秒后继续处理: ${mcpToolToCall.name}`)
+            await new Promise((resolve) => setTimeout(resolve, 1000))
 
             // 将工具响应格式化为Gemini FunctionResponse Part
             const functionResponsePart = mcpToolCallResponseToGeminiFunctionResponsePart(
@@ -680,20 +734,14 @@ export default class GeminiProvider extends BaseProvider {
             console.log(`[GeminiProvider] 将工具响应 #${toolCallCount + 1} 发送回Gemini...`)
 
             // 将工具调用和响应添加到历史记录中
-            const currentToolResponse = {
-              functionCall: functionCall,
-              response: toolResponse
-            }
+            // 注意：不再需要将工具调用和响应添加到历史记录中
 
-            // 将当前工具调用添加到历史中
-            const updatedToolResponses = [...previousToolResponses, currentToolResponse]
-
-            // 将工具调用添加到历史中（模型角色）
+            // 将工具调用添加到历史记录中（模型角色）
             const toolCallMessage: Content = {
               role: 'model',
               parts: [
                 {
-                  functionCall: functionCall // 添加原始的函数调用
+                  functionCall: functionCall // 添加原始的函数调用，保持Gemini原生格式
                 }
               ]
             }
@@ -701,33 +749,30 @@ export default class GeminiProvider extends BaseProvider {
             // 将工具调用添加到历史中
             history.push(toolCallMessage)
 
-            // 将工具调用响应添加到历史中（用户角色，但使用文本格式）
-            // 注意：GoogleGenerativeAI API 有限制，role为'user'的内容不能包含'functionResponse'部分
-            const toolResponseMessage: Content = {
+            // 添加工具调用响应到历史记录中（用户角色）
+            const toolResultMessage: Content = {
               role: 'user',
               parts: [
                 {
-                  text: `工具调用结果 (${functionCall.name}):\n${JSON.stringify(
-                    toolResponse.content.map((item) => {
-                      if (item.type === 'text') return item.text
-                      if (item.type === 'image' && item.data) return `[图片数据]`
-                      return JSON.stringify(item)
-                    }),
-                    null,
-                    2
-                  )}`
+                  text: `工具调用结果 (${functionCall.name}):\n${
+                    toolResponse.isError
+                      ? `Error: ${JSON.stringify(toolResponse.content)}`
+                      : toolResponse.content
+                          .map((item) => (item.type === 'text' ? item.text : JSON.stringify(item)))
+                          .join('\n')
+                  }`
                 }
               ]
             }
 
             // 将工具响应添加到历史中
-            history.push(toolResponseMessage)
+            history.push(toolResultMessage)
 
             // 打印添加到历史记录的内容，便于调试（截断过长内容）
             console.log('[GeminiProvider] 添加到历史的工具调用:', JSON.stringify(toolCallMessage, null, 2))
 
             // 截断工具响应消息内容，避免日志过长
-            const truncatedResponseMessage = { ...toolResponseMessage }
+            const truncatedResponseMessage = { ...toolResultMessage }
             if (
               truncatedResponseMessage.parts &&
               truncatedResponseMessage.parts[0] &&
@@ -744,76 +789,297 @@ export default class GeminiProvider extends BaseProvider {
             // 打印历史记录信息，便于调试
             console.log(`[GeminiProvider] 工具调用历史记录已更新，当前历史长度: ${history.length}`)
 
-            // 使用更新后的历史记录创建新的聊天实例
-            const updatedChat = geminiModel.startChat({ history })
+            try {
+              // 创建一个新的聊天实例，包含更新后的历史
+              const updatedChat = geminiModel.startChat({ history })
 
-            // 使用sendMessageStream进行下一次API调用
-            const nextResponseStream = await updatedChat.sendMessageStream([functionResponsePart], { signal })
+              // 创建一个触发继续响应的简短提示
+              const continuationPrompt: Part[] = [{ text: '请根据工具执行结果继续回复' }]
 
-            // 检查是否启用了Agent模式，以及是否可以继续执行
+              // 添加一个标志表明这是工具调用后的继续响应，避免UI重渲染
+              window.keyv.set('GEMINI_TOOL_CONTINUATION', true)
 
-            if (isAgentMode) {
-              // 检查是否达到最大API请求次数
-              if (!agentService.canContinue()) {
-                console.log('[GeminiProvider] Agent模式已达到最大API请求次数，停止处理')
-                onChunk({
-                  text: `\n\n注意：已达到最大API请求次数 (${store.getState().settings.agentModeMaxApiRequests})。任务已完成。`
-                })
-                // 停止Agent模式
+              // 获取Gemini对工具执行结果的回复
+              const continuationStream = await updatedChat.sendMessageStream(continuationPrompt, { signal })
+
+              // 确保使用同一个工具响应数组，避免状态重置
+              // 处理Gemini的回复流
+              await processStreamWithToolCalls(continuationStream, toolCallCount + 1, false, [])
+
+              // 移除标志
+              window.keyv.remove('GEMINI_TOOL_CONTINUATION')
+
+              // 已处理完整流程，返回
+              return
+            } catch (error) {
+              // 捕获API错误（包括配额超限等）
+              console.error('[GeminiProvider] API错误:', error)
+
+              // 格式化错误消息
+              const errorMessage =
+                error instanceof Error
+                  ? error.message
+                  : typeof error === 'object' && error !== null
+                    ? JSON.stringify(error)
+                    : String(error)
+
+              // 发送错误消息到UI，但保留工具块
+              onChunk({
+                text: `\n\n遇到错误: ${errorMessage}\n\n工具 ${mcpToolToCall.name} 已成功执行，但模型无法继续处理结果。`,
+                mcpToolResponse: toolResponses // 重要：再次传递工具响应，确保工具块不会消失
+              })
+
+              // 如果在Agent模式，添加错误任务并停止
+              if (isAgentMode) {
+                agentService.addTask(
+                  'API错误',
+                  `在处理工具 ${mcpToolToCall.name} 的结果时遇到API错误: ${errorMessage}`,
+                  userLastMessage?.id || ''
+                )
                 agentService.stopAgent()
-                return
               }
-
-              // 添加新任务：分析工具结果并决定下一步
-              // 关联到最后一条用户消息的ID，如果不存在则使用空字符串
-              agentService.addTask(
-                '分析工具结果',
-                `分析工具 ${mcpToolToCall.name} 的执行结果并决定下一步操作`,
-                userLastMessage?.id || '' // 传入消息ID
-              )
             }
-
-            // 递归处理下一个响应流，可能包含更多工具调用
-            await processStreamWithToolCalls(nextResponseStream, toolCallCount + 1, false, updatedToolResponses)
           } else {
             console.error('[GeminiProvider] 找不到匹配的MCP工具:', functionCall.name)
             // 处理找不到工具的情况
             onChunk({ text: `\n\n错误: 找不到工具 ${functionCall.name}。` })
           }
         } else {
-          // 没有函数调用，聚合文本是最终响应
           console.log(
             `[GeminiProvider] 没有检测到函数调用 (调用计数: ${toolCallCount})。最终响应:`,
-            aggregatedResponseText
+            aggregatedResponseText.substring(0, 500) + (aggregatedResponseText.length > 500 ? '...' : '')
           )
-          // 如果需要，可以在这里调用onChunk一次，传递完整的聚合文本
-          // 但流式处理应该已经发送了所有部分。
+
+          // 检查XML格式的工具调用（当使用提示词模式时）
+          if (useGeminiPromptForToolCalling && mcpTools && mcpTools.length > 0) {
+            console.log('[GeminiProvider] 使用提示词模式，检查XML格式的工具调用')
+
+            // 检查是否是恢复的会话中的工具调用
+            const isRestoredSessionToolCall = isRestoredSession && aggregatedResponseText.includes('<tool_placeholder');
+
+            if (isRestoredSessionToolCall) {
+              console.log('[GeminiProvider] 检测到恢复会话中的工具调用，特殊处理:', aggregatedResponseText);
+              // 对于恢复的会话，我们需要特殊处理工具占位符
+              // 提取工具名称，格式如 <tool_placeholder id="get_current_time_1234567890"></tool_placeholder>
+              const toolPlaceholderMatch = aggregatedResponseText.match(/<tool_placeholder id="([^_]+)_/);
+
+              if (toolPlaceholderMatch && toolPlaceholderMatch[1]) {
+                const toolName = toolPlaceholderMatch[1];
+                console.log('[GeminiProvider] 从工具占位符提取的工具名称:', toolName);
+
+                // 查找匹配的工具
+                const matchedTool = mcpTools.find(tool => tool.id === toolName);
+
+                if (matchedTool) {
+                  console.log('[GeminiProvider] 找到匹配的工具:', matchedTool.id);
+
+                  // 创建一个模拟的工具调用
+                  const simulatedToolCall = {
+                    id: `${matchedTool.id}-${Date.now()}`,
+                    tool: matchedTool,
+                    status: 'pending'
+                  };
+
+                  // 添加到解析出的工具中，以便正常执行
+                  // 这里不应该返回工具调用数组，因为函数返回类型是void
+                  console.log('[GeminiProvider] 找到模拟工具调用:', simulatedToolCall);
+                  // 在这里处理模拟工具调用的逻辑
+                  return;
+                }
+              }
+            }
+
+            // 从aggregatedResponseText中解析工具调用
+            const parsedTools = parseToolUse(aggregatedResponseText, mcpTools)
+
+            if (parsedTools && parsedTools.length > 0) {
+              console.log('[GeminiProvider] 从文本中解析到XML工具调用:', parsedTools.length)
+
+              // 处理每个解析出的工具调用
+              for (const toolCall of parsedTools) {
+                // 更新UI状态为调用中
+                const toolCallIdForUI = `${toolCall.tool.id}-${Date.now()}`
+                const actualArgs = toolCall.tool.inputSchema || {}
+
+                upsertMCPToolResponse(
+                  toolResponses,
+                  { id: toolCallIdForUI, tool: toolCall.tool, args: actualArgs, status: 'invoking' },
+                  onChunk
+                )
+
+                // 执行工具调用
+                let toolResponse: MCPCallToolResponse
+                try {
+                  toolResponse = await callMCPTool(toolCall.tool)
+                } catch (error) {
+                  console.error('[GeminiProvider] 执行XML工具调用失败:', error)
+                  toolResponse = {
+                    isError: true,
+                    content: [
+                      {
+                        type: 'text',
+                        text: `Error executing tool ${toolCall.tool.id}: ${error instanceof Error ? error.message : String(error)}`
+                      }
+                    ]
+                  }
+                }
+
+                // 更新UI状态为完成
+                upsertMCPToolResponse(
+                  toolResponses,
+                  { id: toolCallIdForUI, tool: toolCall.tool, args: actualArgs, status: 'done', response: toolResponse },
+                  (chunkData) => {
+                    // 使用metadata传递工具块更新标记
+                    onChunk({
+                      ...chunkData,
+                      metadata: {
+                        ...(chunkData.metadata || {}),
+                        updateToolBlockOnly: true // 指示前端只更新工具块，不刷新整个聊天
+                      }
+                    });
+                  }
+                )
+
+                // 获取工具响应文本用于历史记录
+                const responseText = toolResponse.isError
+                  ? `执行工具 ${toolCall.tool.id} 失败: ${JSON.stringify(toolResponse.content)}`
+                  : toolResponse.content.map(item => (item.type === 'text' ? item.text : '[非文本内容]')).join('\n')
+
+                // 将工具调用结果添加到历史记录中，以供Gemini后续处理
+                const userLastMessageWithFunctionResponse = {
+                  role: 'user',
+                  parts: [
+                    {
+                      text: `<tool_use_result>\n<name>${toolCall.tool.id}</name>\n<result>${responseText}</result>\n</tool_use_result>`
+                    }
+                  ]
+                }
+
+                // 添加到历史中以便Gemini可以引用
+                history.push(userLastMessageWithFunctionResponse)
+
+                // 等待1秒，让用户有时间查看结果
+                await new Promise(resolve => setTimeout(resolve, 1000))
+
+                // 使用更新后的历史记录重新获取Gemini的回复
+                console.log('[GeminiProvider] 将工具执行结果发送回Gemini，等待继续回复')
+
+                try {
+                  // 创建一个新的聊天实例，包含更新后的历史
+                  const updatedChat = geminiModel.startChat({ history })
+
+                  // 创建一个触发继续响应的简短提示
+                  const continuationPrompt: Part[] = [{ text: '请根据工具执行结果继续回复' }]
+
+                  // 添加一个标志表明这是工具调用后的继续响应，避免UI重渲染
+                  window.keyv.set('GEMINI_TOOL_CONTINUATION', true)
+
+                  // 获取Gemini对工具执行结果的回复
+                  const continuationStream = await updatedChat.sendMessageStream(continuationPrompt, { signal })
+
+                  // 确保使用同一个工具响应数组，避免状态重置
+                  // 处理Gemini的回复流
+                  await processStreamWithToolCalls(continuationStream, toolCallCount + 1, false, [])
+
+                  // 移除标志
+                  window.keyv.remove('GEMINI_TOOL_CONTINUATION')
+
+                  // 已处理完整流程，返回
+                  return
+                } catch (error) {
+                  console.error('[GeminiProvider] 处理工具结果失败:', error)
+                  onChunk({
+                    text: `\n\n处理工具结果失败: ${error instanceof Error ? error.message : String(error)}`
+                  })
+                  return
+                }
+              }
+            } else {
+              console.log('[GeminiProvider] 未从文本中解析到XML工具调用')
+            }
+          }
+
+          // 如果没有工具调用，只需记录完成
+          console.log('[GeminiProvider] 工具调用处理完成。流式响应已完成。')
         }
       }
 
       // 使用新的递归函数处理初始流
       const processStream = async (stream: GenerateContentStreamResult) => {
-        await processStreamWithToolCalls(stream, 0, true, [])
+        try {
+          await processStreamWithToolCalls(stream, 0, true, [])
+        } catch (error) {
+          // 捕获顶层错误
+          console.error('[GeminiProvider] 顶层流处理错误:', error)
+
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : typeof error === 'object' && error !== null
+                ? JSON.stringify(error)
+                : String(error)
+
+          // 发送错误消息到UI
+          onChunk({
+            text: `\n\n遇到错误: ${errorMessage}\n\n`,
+            // 如果有工具响应，再次传递确保工具块不会消失
+            ...(toolResponses.length > 0 ? { mcpToolResponse: toolResponses } : {})
+          })
+
+          // 如果在Agent模式，记录错误并停止
+          if (store.getState().settings.enableAgentMode) {
+            agentService.addTask('API错误', `处理响应流时遇到API错误: ${errorMessage}`, userLastMessage?.id || '')
+            agentService.stopAgent()
+          }
+        }
       }
 
-      // Start processing the initial stream
-      await processStream(userMessagesStream /* Remove unused 0 */).finally(() => {
+      try {
+        // Start processing the initial stream
+        await processStream(userMessagesStream).finally(() => {
+          // 清理资源
+          cleanup()
+
+          // 如果启用了Agent模式，添加完成任务并停止Agent
+          const isAgentMode = store.getState().settings.enableAgentMode
+          if (isAgentMode) {
+            // 添加任务完成的消息
+            // 关联到最后一条用户消息的ID，如果不存在则使用空字符串
+            agentService.addTask('任务完成', '所有请求的任务已完成', userLastMessage?.id || '') // 传入消息ID
+
+            // 停止Agent模式
+            setTimeout(() => {
+              agentService.stopAgent()
+            }, 1000) // 延迟1秒停止，确保UI能够显示最终状态
+          }
+        })
+      } catch (error) {
+        // 最外层错误处理
+        console.error('[GeminiProvider] 最外层处理错误:', error)
+
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : typeof error === 'object' && error !== null
+              ? JSON.stringify(error)
+              : String(error)
+
+        // 发送最终错误消息到UI
+        onChunk({
+          text: `\n\n遇到关键错误，无法继续生成: ${errorMessage}`,
+          // 如果有工具响应，再次传递确保工具块不会消失
+          ...(toolResponses.length > 0 ? { mcpToolResponse: toolResponses } : {})
+        })
+
         // 清理资源
         cleanup()
 
-        // 如果启用了Agent模式，添加完成任务并停止Agent
-        const isAgentMode = store.getState().settings.enableAgentMode
-        if (isAgentMode) {
-          // 添加任务完成的消息
-          // 关联到最后一条用户消息的ID，如果不存在则使用空字符串
-          agentService.addTask('任务完成', '所有请求的任务已完成', userLastMessage?.id || '') // 传入消息ID
-
-          // 停止Agent模式
-          setTimeout(() => {
-            agentService.stopAgent()
-          }, 1000) // 延迟1秒停止，确保UI能够显示最终状态
+        // 如果在Agent模式，记录错误并停止
+        if (store.getState().settings.enableAgentMode) {
+          agentService.addTask('关键错误', `遇到关键错误: ${errorMessage}`, userLastMessage?.id || '')
+          agentService.stopAgent()
         }
-      })
+      }
     }
   }
 

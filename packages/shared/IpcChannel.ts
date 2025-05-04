@@ -122,6 +122,7 @@ export enum IpcChannel {
   File_Copy = 'file:copy',
   File_BinaryFile = 'file:binaryFile',
   File_WriteBase64Image = 'file:writeBase64Image',
+  File_Base64File = 'file:base64File',
 
   Fs_Read = 'fs:read',
 
@@ -193,7 +194,6 @@ export enum IpcChannel {
   // PDF
   PDF_SplitPDF = 'pdf:split-pdf',
   PDF_GetPageCount = 'pdf:get-page-count',
-  PDF_ToWord = 'pdf:to-word',
 
   // Deep Research
   DeepResearch_Complete = 'deep-research:complete',

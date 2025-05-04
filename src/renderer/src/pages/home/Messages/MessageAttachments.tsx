@@ -34,7 +34,7 @@ const StyledUpload = styled(Upload)`
 const MessageAttachments: FC<Props> = ({ message }) => {
   // 使用 useCallback 记忆化复制图片函数，避免不必要的重新创建
   const handleCopyImage = useCallback(async (image: FileType) => {
-    const data = await FileManager.readFile(image)
+    const data = await FileManager.readBinaryImage(image)
     const blob = new Blob([data], { type: 'image/png' })
     const item = new ClipboardItem({ [blob.type]: blob })
     await navigator.clipboard.write([item])

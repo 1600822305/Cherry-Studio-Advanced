@@ -26,7 +26,7 @@ export function usePaintings() {
         steps: 25,
         guidanceScale: 4.5,
         promptEnhancement: true,
-aspectRatio: '1:1'
+        aspectRatio: '1:1'
       }
       dispatch(addPainting(newPainting))
       return newPainting

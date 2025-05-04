@@ -42,38 +42,38 @@ const IMAGE_SIZES = [
     label: '1:1',
     value: '1024x1024',
     icon: ImageSize1_1,
-    aspectRatio: '1:1',
+    aspectRatio: '1:1'
   },
   {
     label: '1:2',
     value: '512x1024',
     icon: ImageSize1_2,
-    aspectRatio: '1:2',
+    aspectRatio: '1:2'
   },
   {
     label: '3:2',
     value: '768x512',
     icon: ImageSize3_2,
-    aspectRatio: '3:2',
+    aspectRatio: '3:2'
   },
   {
     label: '3:4',
     value: '768x1024',
     icon: ImageSize3_4,
-    aspectRatio: '3:4',
+    aspectRatio: '3:4'
   },
   {
     label: '16:9',
     value: '1024x576',
     icon: ImageSize16_9,
-    aspectRatio: '16:9',
+    aspectRatio: '16:9'
   },
   {
     label: '9:16',
     value: '576x1024',
     icon: ImageSize9_16,
-    aspectRatio: '9:16',
-  },
+    aspectRatio: '9:16'
+  }
 ]
 
 let _painting: Painting

@@ -30,6 +30,16 @@ export interface ChunkCallbackData {
   citations?: string[]
   mcpToolResponse?: MCPToolResponse[]
   generateImage?: GenerateImageResponse
+  // Gemini原生函数调用格式
+  geminiFunctionCall?: {
+    name: string // 函数调用的名称
+    args: Record<string, any> // 函数调用的参数
+    placeholderId?: string // 占位符ID，用于在UI中定位工具块的确切位置
+    // 该字段至关重要，保证了工具块在文本流中正确定位
+    // 如果没有此ID，工具块将无法在正确位置渲染
+  }
+  // 额外元数据，将被合并到消息的metadata中
+  metadata?: Record<string, any>
 }
 
 export interface CompletionsParams {

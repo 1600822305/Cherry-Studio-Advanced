@@ -18,22 +18,22 @@ export function useWebviewEventHandler(
   const setupListeners = useCallback(
     (webview: WebviewTag, tabId: string) => {
       console.log(`[useWebviewEventHandler] Setting up listeners for tab: ${tabId}`)
-      
+
       // 如果已经有监听器，先清理
       if (cleanupFunctionsRef.current[tabId]) {
         cleanupFunctionsRef.current[tabId]()
         delete cleanupFunctionsRef.current[tabId]
       }
-      
+
       // 设置新的事件监听器
       const cleanup = setupWebviewListeners(webview, tabId)
       cleanupFunctionsRef.current[tabId] = cleanup
-      
+
       return cleanup
     },
     [setupWebviewListeners, cleanupFunctionsRef]
   )
-  
+
   /**
    * 清理webview事件监听器
    * @param tabId 标签页ID
@@ -48,7 +48,7 @@ export function useWebviewEventHandler(
     },
     [cleanupFunctionsRef]
   )
-  
+
   return {
     setupListeners,
     cleanupListeners

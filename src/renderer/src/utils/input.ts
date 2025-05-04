@@ -3,7 +3,7 @@ import Logger from 'electron-log/renderer'
 
 // 声明一个接口，描述带有 path 属性的 File 对象
 interface ElectronFile extends File {
-  path: string;
+  path: string
 }
 
 export const getFilesFromDropEvent = async (e: React.DragEvent<HTMLDivElement>): Promise<FileType[]> => {
