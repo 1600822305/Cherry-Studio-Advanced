@@ -54,8 +54,8 @@ import {
   geminiFunctionCallToMcpTool, // Re-add import
   mcpToolCallResponseToGeminiFunctionResponsePart, // Re-add import
   mcpToolsToGeminiTools, // Import for UI updates
-  upsertMCPToolResponse, // Re-add import
-  parseToolUse
+  parseToolUse,
+  upsertMCPToolResponse // Re-add import
 } from '@renderer/utils/mcp-tools'
 import { buildSystemPrompt } from '@renderer/utils/prompt'
 import { MB } from '@shared/config/constant'
@@ -367,16 +367,16 @@ export default class GeminiProvider extends BaseProvider {
     }
 
     // 检查是否是恢复的会话(重启后打开的旧会话)
-    const isRestoredSession = messages.length > 1 && window.keyv.get('APP_JUST_STARTED') === true;
+    const isRestoredSession = messages.length > 1 && window.keyv.get('APP_JUST_STARTED') === true
 
     // 如果是刚启动应用，标记应用已启动
     if (window.keyv.get('APP_JUST_STARTED') === true) {
-      window.keyv.set('APP_JUST_STARTED', false);
-      console.log('[GeminiProvider] 应用刚刚启动，可能需要特殊处理恢复的会话');
+      window.keyv.set('APP_JUST_STARTED', false)
+      console.log('[GeminiProvider] 应用刚刚启动，可能需要特殊处理恢复的会话')
     }
 
     if (isRestoredSession) {
-      console.log('[GeminiProvider] 检测到恢复的会话，确保工具调用处理正确');
+      console.log('[GeminiProvider] 检测到恢复的会话，确保工具调用处理正确')
     }
 
     if (assistant.enableGenerateImage) {
@@ -536,7 +536,8 @@ export default class GeminiProvider extends BaseProvider {
         stream: GenerateContentStreamResult,
         toolCallCount: number = 0,
         isFirstCall: boolean = true,
-        // 注意：previousToolResponses参数未使用，但保留参数以保持接口兼容性
+        // 注意：保留参数以保持接口兼容性
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         _previousToolResponses: { functionCall: any; response: any }[] = []
       ): Promise<void> => {
         // 检查是否超过最大工具调用次数
@@ -707,7 +708,7 @@ export default class GeminiProvider extends BaseProvider {
                     ...(chunkData.metadata || {}),
                     updateToolBlockOnly: true // 指示前端只更新工具块，不刷新整个聊天
                   }
-                });
+                })
               }
             )
 
@@ -855,36 +856,36 @@ export default class GeminiProvider extends BaseProvider {
             console.log('[GeminiProvider] 使用提示词模式，检查XML格式的工具调用')
 
             // 检查是否是恢复的会话中的工具调用
-            const isRestoredSessionToolCall = isRestoredSession && aggregatedResponseText.includes('<tool_placeholder');
+            const isRestoredSessionToolCall = isRestoredSession && aggregatedResponseText.includes('<tool_placeholder')
 
             if (isRestoredSessionToolCall) {
-              console.log('[GeminiProvider] 检测到恢复会话中的工具调用，特殊处理:', aggregatedResponseText);
+              console.log('[GeminiProvider] 检测到恢复会话中的工具调用，特殊处理:', aggregatedResponseText)
               // 对于恢复的会话，我们需要特殊处理工具占位符
               // 提取工具名称，格式如 <tool_placeholder id="get_current_time_1234567890"></tool_placeholder>
-              const toolPlaceholderMatch = aggregatedResponseText.match(/<tool_placeholder id="([^_]+)_/);
+              const toolPlaceholderMatch = aggregatedResponseText.match(/<tool_placeholder id="([^_]+)_/)
 
               if (toolPlaceholderMatch && toolPlaceholderMatch[1]) {
-                const toolName = toolPlaceholderMatch[1];
-                console.log('[GeminiProvider] 从工具占位符提取的工具名称:', toolName);
+                const toolName = toolPlaceholderMatch[1]
+                console.log('[GeminiProvider] 从工具占位符提取的工具名称:', toolName)
 
                 // 查找匹配的工具
-                const matchedTool = mcpTools.find(tool => tool.id === toolName);
+                const matchedTool = mcpTools.find((tool) => tool.id === toolName)
 
                 if (matchedTool) {
-                  console.log('[GeminiProvider] 找到匹配的工具:', matchedTool.id);
+                  console.log('[GeminiProvider] 找到匹配的工具:', matchedTool.id)
 
                   // 创建一个模拟的工具调用
                   const simulatedToolCall = {
                     id: `${matchedTool.id}-${Date.now()}`,
                     tool: matchedTool,
                     status: 'pending'
-                  };
+                  }
 
                   // 添加到解析出的工具中，以便正常执行
                   // 这里不应该返回工具调用数组，因为函数返回类型是void
-                  console.log('[GeminiProvider] 找到模拟工具调用:', simulatedToolCall);
+                  console.log('[GeminiProvider] 找到模拟工具调用:', simulatedToolCall)
                   // 在这里处理模拟工具调用的逻辑
-                  return;
+                  return
                 }
               }
             }
@@ -927,7 +928,13 @@ export default class GeminiProvider extends BaseProvider {
                 // 更新UI状态为完成
                 upsertMCPToolResponse(
                   toolResponses,
-                  { id: toolCallIdForUI, tool: toolCall.tool, args: actualArgs, status: 'done', response: toolResponse },
+                  {
+                    id: toolCallIdForUI,
+                    tool: toolCall.tool,
+                    args: actualArgs,
+                    status: 'done',
+                    response: toolResponse
+                  },
                   (chunkData) => {
                     // 使用metadata传递工具块更新标记
                     onChunk({
@@ -936,14 +943,14 @@ export default class GeminiProvider extends BaseProvider {
                         ...(chunkData.metadata || {}),
                         updateToolBlockOnly: true // 指示前端只更新工具块，不刷新整个聊天
                       }
-                    });
+                    })
                   }
                 )
 
                 // 获取工具响应文本用于历史记录
                 const responseText = toolResponse.isError
                   ? `执行工具 ${toolCall.tool.id} 失败: ${JSON.stringify(toolResponse.content)}`
-                  : toolResponse.content.map(item => (item.type === 'text' ? item.text : '[非文本内容]')).join('\n')
+                  : toolResponse.content.map((item) => (item.type === 'text' ? item.text : '[非文本内容]')).join('\n')
 
                 // 将工具调用结果添加到历史记录中，以供Gemini后续处理
                 const userLastMessageWithFunctionResponse = {
@@ -959,7 +966,7 @@ export default class GeminiProvider extends BaseProvider {
                 history.push(userLastMessageWithFunctionResponse)
 
                 // 等待1秒，让用户有时间查看结果
-                await new Promise(resolve => setTimeout(resolve, 1000))
+                await new Promise((resolve) => setTimeout(resolve, 1000))
 
                 // 使用更新后的历史记录重新获取Gemini的回复
                 console.log('[GeminiProvider] 将工具执行结果发送回Gemini，等待继续回复')

@@ -38,7 +38,7 @@ export async function visualWebInteraction(
   "elementDescription": "百度百科链接，显示为'我的世界_百度百科'",
   "elementLocation": "页面左上方，第一个搜索结果",
   "recommendedAction": "点击该链接",
-  "cssSelector": "可能的选择器，如'.result a[href*=\"baike.baidu.com\"]'"
+  "cssSelector": "可能的选择器，如'.result a[href*=baike.baidu.com]'"
 }
 `
 
@@ -61,7 +61,7 @@ export async function visualWebInteraction(
           (function() {
             try {
               // 尝试多种选择器变体
-              const selectors = ['${result.cssSelector}', '${result.cssSelector.replace(/'/g, "\\'")}'];
+              const selectors = ['${result.cssSelector}', '${result.cssSelector.replace(/'/g, "'")}'];
 
               // 添加更通用的选择器
               if ('${result.cssSelector}'.includes('baike.baidu.com')) {
@@ -121,7 +121,7 @@ export async function visualWebInteraction(
           (function() {
             try {
               // 查找包含特定文本的链接
-              const textToFind = '${result.elementDescription.replace(/'/g, "\\'")}';
+              const textToFind = '${result.elementDescription.replace(/'/g, "'")}';
               const searchTerms = [
                 textToFind.split('，')[0],
                 textToFind.split('_')[0],

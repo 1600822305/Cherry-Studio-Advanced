@@ -1,34 +1,34 @@
-import { WebviewTag } from 'electron'
 import { Model } from '@renderer/types'
+import { WebviewTag } from 'electron'
 import { v4 as uuid } from 'uuid'
 
-import { generateAIResponse } from './chatUtils'
 import { AITask, executeAITask, generateTaskStepsWithAI } from './aiAutomation'
+import { generateAIResponse } from './chatUtils'
 
 /**
  * 复杂任务类型
  */
 export enum ComplexTaskType {
-  MULTI_STEP = 'multi_step',           // 多步骤任务
-  LOOP = 'loop',                       // 循环任务
-  CONDITION = 'condition',             // 条件分支任务
-  DATA_COLLECTION = 'data_collection',  // 数据收集任务
-  INTERACTIVE = 'interactive'           // 交互式任务
+  MULTI_STEP = 'multi_step', // 多步骤任务
+  LOOP = 'loop', // 循环任务
+  CONDITION = 'condition', // 条件分支任务
+  DATA_COLLECTION = 'data_collection', // 数据收集任务
+  INTERACTIVE = 'interactive' // 交互式任务
 }
 
 /**
  * 增强型AI任务
  */
 export type EnhancedAITask = AITask & {
-  id: string                       // 唯一任务ID
-  taskType: ComplexTaskType        // 任务类型
-  subTasks?: EnhancedAITask[]     // 子任务列表
-  context?: string                // 任务上下文
-  collectedData?: any[]           // 收集的数据
+  id: string // 唯一任务ID
+  taskType: ComplexTaskType // 任务类型
+  subTasks?: EnhancedAITask[] // 子任务列表
+  context?: string // 任务上下文
+  collectedData?: any[] // 收集的数据
   variables?: Record<string, any> // 任务变量
-  maxRetries?: number             // 最大重试次数
-  retries?: number                // 当前已重试次数
-  parentId?: string               // 父任务ID
+  maxRetries?: number // 最大重试次数
+  retries?: number // 当前已重试次数
+  parentId?: string // 父任务ID
 }
 
 /**
@@ -58,10 +58,7 @@ export async function createEnhancedTask(
 /**
  * 根据复杂指令创建适当的任务类型
  */
-export async function createTaskFromInstruction(
-  instruction: string,
-  model?: Model
-): Promise<EnhancedAITask> {
+export async function createTaskFromInstruction(instruction: string, model?: Model): Promise<EnhancedAITask> {
   // 分析指令以确定任务类型
   const taskTypePrompt = `
 请分析以下任务指令，确定这是什么类型的任务：
@@ -146,7 +143,7 @@ export async function processDataCollectionTask(
   model?: Model
 ): Promise<EnhancedAITask> {
   // 执行基本任务流程
-  let updatedTask = await executeEnhancedTask(task, webview, model)
+  const updatedTask = await executeEnhancedTask(task, webview, model)
 
   // 如果有结果，使用AI解析结构化数据
   if (updatedTask.result) {
@@ -209,7 +206,7 @@ export async function executeEnhancedTask(
       return await executeInteractiveTask(task, webview, model)
 
     case ComplexTaskType.MULTI_STEP:
-    default:
+    default: {
       // 对于基本多步骤任务，使用现有执行逻辑
       const baseResult = await executeAITask(task, webview, model)
       return {
@@ -224,6 +221,7 @@ export async function executeEnhancedTask(
         maxRetries: task.maxRetries,
         parentId: task.parentId
       }
+    }
   }
 }
 
@@ -238,14 +236,18 @@ async function executeLoopTask(
   // 如果没有子任务，先创建一个基础任务来获取项目列表
   if (!task.subTasks || task.subTasks.length === 0) {
     // 执行主任务来获取项目列表
-    const baseTask = await executeAITask({
-      description: task.description,
-      steps: task.steps,
-      currentStep: task.currentStep,
-      completed: task.completed,
-      result: task.result,
-      error: task.error
-    }, webview, model)
+    const baseTask = await executeAITask(
+      {
+        description: task.description,
+        steps: task.steps,
+        currentStep: task.currentStep,
+        completed: task.completed,
+        result: task.result,
+        error: task.error
+      },
+      webview,
+      model
+    )
 
     // 更新任务状态
     task = {
@@ -276,8 +278,8 @@ ${task.result.substring(0, 5000)}
         const itemsResponse = await generateAIResponse(itemExtractionPrompt, [], model)
         const items = itemsResponse
           .split('\n')
-          .map(item => item.trim())
-          .filter(item => item.length > 0 && !item.startsWith('项目') && !item.match(/^\d+\.\s*/))
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0 && !item.startsWith('项目') && !item.match(/^\d+\.\s*/))
 
         if (items.length > 0) {
           // 为每个项目生成子任务
@@ -323,7 +325,7 @@ ${task.result.substring(0, 5000)}
   task.subTasks = updatedSubTasks
 
   // 检查所有子任务是否都已完成
-  const allCompleted = task.subTasks.every(subTask => subTask.completed || subTask.error)
+  const allCompleted = task.subTasks.every((subTask) => subTask.completed || subTask.error)
 
   // 如果所有子任务都已完成，标记主任务为完成
   if (allCompleted) {
@@ -331,13 +333,13 @@ ${task.result.substring(0, 5000)}
 
     // 合并子任务的结果
     const successfulResults = task.subTasks
-      .filter(subTask => subTask.completed && !subTask.error && subTask.result)
-      .map(subTask => ({ context: subTask.context, result: subTask.result }))
+      .filter((subTask) => subTask.completed && !subTask.error && subTask.result)
+      .map((subTask) => ({ context: subTask.context, result: subTask.result }))
 
     // 收集所有子任务的数据
     const collectedData = task.subTasks
-      .filter(subTask => subTask.collectedData && subTask.collectedData.length > 0)
-      .flatMap(subTask => subTask.collectedData || [])
+      .filter((subTask) => subTask.collectedData && subTask.collectedData.length > 0)
+      .flatMap((subTask) => subTask.collectedData || [])
 
     if (collectedData.length > 0) {
       task.collectedData = collectedData
@@ -348,7 +350,7 @@ ${task.result.substring(0, 5000)}
       const summaryPrompt = `
 请总结以下循环任务的结果。总任务：${task.description}
 
-${successfulResults.map(r => `项目: ${r.context}\n结果: ${r.result?.substring(0, 500)}\n`).join('\n---\n')}
+${successfulResults.map((r) => `项目: ${r.context}\n结果: ${r.result?.substring(0, 500)}\n`).join('\n---\n')}
 
 请简洁地总结所有结果，并提取关键信息。
 `
@@ -358,7 +360,7 @@ ${successfulResults.map(r => `项目: ${r.context}\n结果: ${r.result?.substrin
       } catch (error) {
         console.error('Error generating summary for loop task:', error)
         // 使用简单合并作为备选方案
-        task.result = `所有子任务结果:\n\n${successfulResults.map(r => `${r.context}:\n${r.result?.substring(0, 300)}...\n`).join('\n---\n')}`
+        task.result = `所有子任务结果:\n\n${successfulResults.map((r) => `${r.context}:\n${r.result?.substring(0, 300)}...\n`).join('\n---\n')}`
       }
     } else {
       task.result = '循环任务完成，但没有成功的子任务结果'
@@ -377,14 +379,18 @@ async function executeConditionalTask(
   model?: Model
 ): Promise<EnhancedAITask> {
   // 先执行基本任务流程来获取信息
-  const baseResult = await executeAITask({
-    description: task.description,
-    steps: task.steps,
-    currentStep: task.currentStep,
-    completed: false,
-    result: task.result,
-    error: task.error
-  }, webview, model)
+  const baseResult = await executeAITask(
+    {
+      description: task.description,
+      steps: task.steps,
+      currentStep: task.currentStep,
+      completed: false,
+      result: task.result,
+      error: task.error
+    },
+    webview,
+    model
+  )
 
   // 更新任务状态
   task = {
@@ -463,14 +469,18 @@ async function executeInteractiveTask(
 ): Promise<EnhancedAITask> {
   // 交互式任务需要特殊处理，增加动态决策能力
   // 默认先按普通任务执行
-  let baseResult = await executeAITask({
-    description: task.description,
-    steps: task.steps,
-    currentStep: task.currentStep,
-    completed: false,
-    result: task.result,
-    error: task.error
-  }, webview, model)
+  const baseResult = await executeAITask(
+    {
+      description: task.description,
+      steps: task.steps,
+      currentStep: task.currentStep,
+      completed: false,
+      result: task.result,
+      error: task.error
+    },
+    webview,
+    model
+  )
 
   // 更新任务状态
   task = {
@@ -513,7 +523,11 @@ ${task.steps.join('\n')}
             const nextAction = JSON.parse(jsonMatch[0])
 
             // 判断是否继续执行
-            if (nextAction.action === "继续执行" && Array.isArray(nextAction.next_steps) && nextAction.next_steps.length > 0) {
+            if (
+              nextAction.action === '继续执行' &&
+              Array.isArray(nextAction.next_steps) &&
+              nextAction.next_steps.length > 0
+            ) {
               // 添加新步骤
               task.steps = [...task.steps, ...nextAction.next_steps]
 
@@ -558,7 +572,7 @@ export async function retryTaskWithAlternative(
   model?: Model
 ): Promise<EnhancedAITask> {
   // 如果没有错误或已达到最大重试次数，直接返回
-  if (!task.error || !task.maxRetries || task.retries && task.retries >= task.maxRetries) {
+  if (!task.error || !task.maxRetries || (task.retries && task.retries >= task.maxRetries)) {
     return task
   }
 
@@ -585,8 +599,8 @@ ${task.steps.join('\n')}
     // 解析重新设计的步骤
     const steps = alternativeResponse
       .split('\n')
-      .map(step => step.trim())
-      .filter(step => step.length > 0 && !step.startsWith('步骤') && !step.match(/^\d+\.\s*/))
+      .map((step) => step.trim())
+      .filter((step) => step.length > 0 && !step.startsWith('步骤') && !step.match(/^\d+\.\s*/))
 
     if (steps.length > 0) {
       // 创建新的任务对象，保留原任务的ID和上下文

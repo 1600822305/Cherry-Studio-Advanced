@@ -349,18 +349,20 @@ export async function executeBrowserAction(
       case 'navigate':
         await navigateTo(webview, action.url)
         break
-      case 'click':
+      case 'click': {
         const clickResult = await clickElement(webview, action.selector)
         if (!clickResult) {
           return { success: false, error: 'Failed to click element' }
         }
         break
-      case 'type':
+      }
+      case 'type': {
         const typeResult = await typeText(webview, action.selector, action.text)
         if (!typeResult) {
           return { success: false, error: 'Failed to type text' }
         }
         break
+      }
       case 'search':
         await search(webview, action.engine, action.query)
         break
@@ -382,7 +384,7 @@ export async function executeBrowserAction(
       case 'getContent':
         // 不需要执行任何操作，只需获取内容
         break
-      case 'visualInteraction':
+      case 'visualInteraction': {
         // 使用视觉AI执行操作
         const visualResult = await visualWebInteraction(webview, action.instruction, action.model)
         if (!visualResult.success) {
@@ -390,28 +392,32 @@ export async function executeBrowserAction(
         }
         // 如果成功，继续获取内容
         break
+      }
       case 'switchToTab':
         await switchToTab(webview, action.tabIndex)
         break
-      case 'listTabs':
+      case 'listTabs': {
         const tabsResult = await listTabs(webview)
         return {
           success: tabsResult.success,
           content: JSON.stringify(tabsResult),
           error: tabsResult.error
         }
-      case 'closeTab':
+      }
+      case 'closeTab': {
         const closeResult = await closeTab(webview, action.tabIndex)
         if (!closeResult) {
           return { success: false, error: 'Failed to close tab' }
         }
         break
-      case 'createTab':
+      }
+      case 'createTab': {
         const createResult = await createTab(webview, action.url, action.title)
         if (!createResult.success) {
           return { success: false, error: `Failed to create tab: ${createResult.error}` }
         }
         break
+      }
       default:
         return { success: false, error: `Unsupported action type: ${(action as any).type}` }
     }
@@ -843,6 +849,7 @@ async function switchToTab(_webview: WebviewTag, tabIndex: number): Promise<bool
  * @param webview webview元素
  * @returns 标签页列表
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function listTabs(_webview: WebviewTag): Promise<any> {
   try {
     console.log('Listing tabs')
@@ -866,6 +873,7 @@ async function listTabs(_webview: WebviewTag): Promise<any> {
  * @param tabIndex 标签页索引
  * @returns 是否成功关闭
  */
+
 async function closeTab(_webview: WebviewTag, tabIndex: number): Promise<boolean> {
   try {
     console.log('Closing tab index:', tabIndex)
@@ -890,6 +898,7 @@ async function closeTab(_webview: WebviewTag, tabIndex: number): Promise<boolean
  * @param title 新标签页标题（可选）
  * @returns 新标签页信息
  */
+
 async function createTab(_webview: WebviewTag, url: string, title?: string): Promise<any> {
   try {
     console.log('Creating new tab with URL:', url, 'and title:', title || url)

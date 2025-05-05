@@ -7,10 +7,12 @@ import { BrowserAction, executeBrowserAction } from './browserAutomation'
 /**
  * 自定义浏览器操作类型扩展
  */
-export type CustomBrowserAction = BrowserAction | {
-  type: 'customResult'
-  content: string
-}
+export type CustomBrowserAction =
+  | BrowserAction
+  | {
+      type: 'customResult'
+      content: string
+    }
 
 /**
  * AI任务类型
@@ -139,12 +141,7 @@ export function parseComplexInstruction(instruction: string): AITask | null {
     return {
       id: generateTaskId(),
       description: `搜索"${query}"`,
-      steps: [
-        `搜索"${query}"`,
-        '分析搜索结果页面',
-        '点击最相关的搜索结果',
-        '分析页面内容'
-      ],
+      steps: [`搜索"${query}"`, '分析搜索结果页面', '点击最相关的搜索结果', '分析页面内容'],
       currentStep: 0,
       completed: false,
       executionState: {},
@@ -157,12 +154,7 @@ export function parseComplexInstruction(instruction: string): AITask | null {
   return {
     id: generateTaskId(),
     description: instruction,
-    steps: [
-      `搜索"${instruction}"`,
-      '分析搜索结果页面',
-      '点击最相关的搜索结果',
-      '分析页面内容'
-    ],
+    steps: [`搜索"${instruction}"`, '分析搜索结果页面', '点击最相关的搜索结果', '分析页面内容'],
     currentStep: 0,
     completed: false,
     executionState: {},
@@ -288,7 +280,11 @@ ${item2Data}
         } else if (step.includes('第二个搜索结果')) {
           return { type: 'visualInteraction', instruction: '点击第二个搜索结果链接', model }
         } else if (step.includes('百度百科') || step.includes('维基百科')) {
-          return { type: 'visualInteraction', instruction: `点击包含${step.includes('百度百科') ? '百度百科' : '维基百科'}的链接`, model }
+          return {
+            type: 'visualInteraction',
+            instruction: `点击包含${step.includes('百度百科') ? '百度百科' : '维基百科'}的链接`,
+            model
+          }
         } else {
           return { type: 'visualInteraction', instruction: step, model }
         }
@@ -523,9 +519,9 @@ async function findFirstSearchResultSelector(webview: WebviewTag): Promise<strin
 export async function generateTaskStepsWithAI(instruction: string, model?: Model): Promise<AITask> {
   try {
     // 先尝试使用规则解析，这样可以处理常见任务模式
-    const ruleBasedTask = parseComplexInstruction(instruction);
+    const ruleBasedTask = parseComplexInstruction(instruction)
     if (ruleBasedTask) {
-      return ruleBasedTask;
+      return ruleBasedTask
     }
 
     // 使用AI模型生成步骤
@@ -585,10 +581,10 @@ export async function generateTaskStepsWithAI(instruction: string, model?: Model
         // 验证JSON格式
         if (taskJson.description && Array.isArray(taskJson.steps) && taskJson.steps.length > 0) {
           // 确保第一步是搜索操作，除非明确是打开特定网站
-          const firstStep = taskJson.steps[0].toLowerCase();
+          const firstStep = taskJson.steps[0].toLowerCase()
           if (!firstStep.includes('搜索') && !firstStep.includes('打开') && !firstStep.includes('导航')) {
             // 在步骤前插入搜索步骤
-            taskJson.steps.unshift(`搜索"${instruction}"`);
+            taskJson.steps.unshift(`搜索"${instruction}"`)
           }
 
           return {
@@ -610,15 +606,15 @@ export async function generateTaskStepsWithAI(instruction: string, model?: Model
         const stepsText = stepsMatch[1]
         const steps = stepsText
           .split(/\n/)
-          .map((step) => step.replace(/^\d+[\.、\s]+/, '').trim())
+          .map((step) => step.replace(/^\d+[.、\s]+/, '').trim())
           .filter((step) => step.length > 0)
 
         if (steps.length > 0) {
           // 确保第一步是搜索操作，除非明确是打开特定网站
-          const firstStep = steps[0].toLowerCase();
+          const firstStep = steps[0].toLowerCase()
           if (!firstStep.includes('搜索') && !firstStep.includes('打开') && !firstStep.includes('导航')) {
             // 在步骤前插入搜索步骤
-            steps.unshift(`搜索"${instruction}"`);
+            steps.unshift(`搜索"${instruction}"`)
           }
 
           return {
@@ -687,11 +683,13 @@ export async function executeAITask(task: AITask, webview: WebviewTag | null, mo
     console.log(`执行任务步骤: ${currentStep}`)
 
     // 特殊处理：如果是第一步且没有明确搜索指令，且不是导航指令，则默认添加百度搜索步骤
-    if (task.currentStep === 0 &&
-        !currentStep.toLowerCase().includes('搜索') &&
-        !currentStep.toLowerCase().includes('打开') &&
-        !currentStep.toLowerCase().includes('导航') &&
-        !currentStep.toLowerCase().includes('访问')) {
+    if (
+      task.currentStep === 0 &&
+      !currentStep.toLowerCase().includes('搜索') &&
+      !currentStep.toLowerCase().includes('打开') &&
+      !currentStep.toLowerCase().includes('导航') &&
+      !currentStep.toLowerCase().includes('访问')
+    ) {
       // 使用任务描述作为搜索关键词
       const searchKeyword = task.description.replace(/["""]/g, '')
       console.log(`添加默认搜索步骤，搜索关键词: ${searchKeyword}`)
@@ -803,7 +801,7 @@ export async function executeAITask(task: AITask, webview: WebviewTag | null, mo
           task.retryCount = retryCount + 1
 
           // 添加延迟后重试
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          await new Promise((resolve) => setTimeout(resolve, 1000))
           return executeAITask(task, webview, model)
         } else {
           // 超过最大重试次数，标记为失败
@@ -856,7 +854,7 @@ async function tryRecoverFromError(task: AITask, webview: WebviewTag | null, mod
 执行错误: ${task.error}
 
 任务历史:
-${task.history?.map(h => `- ${h.step}: ${h.result}`).join('\n') || '无历史记录'}
+${task.history?.map((h) => `- ${h.step}: ${h.result}`).join('\n') || '无历史记录'}
 
 请提供一个替代的步骤来代替当前步骤，或者提供一个可以跳过当前步骤的解决方案。
 返回JSON格式:

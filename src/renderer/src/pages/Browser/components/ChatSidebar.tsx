@@ -19,7 +19,7 @@ import { useDefaultAssistant } from '@renderer/hooks/useAssistant'
 import { getDefaultModel } from '@renderer/services/AssistantService'
 import { throttledSyncBrowserChatMessages } from '@renderer/services/BrowserChatSyncService'
 import { Model } from '@renderer/types'
-import { Button, Input, List, message, Modal, Spin, Tooltip, Space } from 'antd'
+import { Button, Input, List, message, Modal, Space, Spin, Tooltip } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
@@ -27,6 +27,7 @@ import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 
+import { ChatSidebarState } from '../index'
 import {
   ChatSidebarContainer,
   ChatSidebarHeader,
@@ -39,19 +40,13 @@ import {
   MessageTimestamp,
   ModelIndicator
 } from '../styles/ChatSidebarStyles'
-import {
-  AITask,
-  executeAITask,
-  executeComplexTask,
-  decomposeComplexTask
-} from '../utils/aiAutomation'
+import { AITask, decomposeComplexTask, executeAITask, executeComplexTask } from '../utils/aiAutomation'
 import { letAIControlBrowser } from '../utils/aiController'
 import { addChatMessage, ChatMessage, generateAIResponse, generateUniqueId, getChatMessages } from '../utils/chatUtils'
 import { getWebviewContent } from '../utils/webContentUtils'
 import { clickAndGetContent, getClickableElements } from '../utils/webInteractionUtils'
 import CreateTaskModal from './CreateTaskModal'
 import ModelSelector from './ModelSelector'
-import { ChatSidebarState } from '../index'
 import TaskExecutionPanel from './TaskExecutionPanel'
 
 // 聊天侧边栏组件
@@ -597,7 +592,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ visible, onClose, activeWebvi
     }
 
     // 保存到本地存储并更新消息列表
-    let updatedMessages = addChatMessage(userMessage)
+    const updatedMessages = addChatMessage(userMessage)
     setMessages(updatedMessages)
     setInputValue('')
     setIsLoading(true)
@@ -607,7 +602,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ visible, onClose, activeWebvi
 
     // 生成AI回复
     generateAIResponse(userMessage.content, getChatMessages(), selectedModel)
-      .then(response => {
+      .then((response) => {
         // 创建助手消息
         const assistantMessage: ChatMessage = {
           id: generateUniqueId(),
@@ -623,7 +618,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ visible, onClose, activeWebvi
         // 同步消息到主界面
         throttledSyncBrowserChatMessages()
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('Error generating task summary:', error)
 
         // 创建错误消息
@@ -688,8 +683,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ visible, onClose, activeWebvi
         open={showModelSelector}
         onCancel={() => setShowModelSelector(false)}
         footer={null}
-        width={400}
-      >
+        width={400}>
         <ModelSelector
           value={selectedModel}
           onChange={(model: Model) => {
@@ -705,34 +699,30 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ visible, onClose, activeWebvi
         open={showToolsModal}
         onCancel={() => setShowToolsModal(false)}
         footer={null}
-        width={400}
-      >
+        width={400}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <Button
             icon={<ReadOutlined />}
             onClick={() => {
-              handleGetWebContent();
-              setShowToolsModal(false);
-            }}
-          >
+              handleGetWebContent()
+              setShowToolsModal(false)
+            }}>
             获取网页内容
           </Button>
           <Button
             icon={<RobotOutlined />}
             onClick={() => {
-              handleOpenElementSelector();
-              setShowToolsModal(false);
-            }}
-          >
+              handleOpenElementSelector()
+              setShowToolsModal(false)
+            }}>
             自动点击元素
           </Button>
           <Button
             icon={<ThunderboltOutlined />}
             onClick={() => {
-              setShowTaskModal(true);
-              setShowToolsModal(false);
-            }}
-          >
+              setShowTaskModal(true)
+              setShowToolsModal(false)
+            }}>
             自动执行任务
           </Button>
         </div>
@@ -764,8 +754,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ visible, onClose, activeWebvi
         open={showTaskProgress}
         onCancel={() => setShowTaskProgress(false)}
         footer={null}
-        width={700}
-      >
+        width={700}>
         {currentTask && (
           <TaskExecutionPanel
             task={currentTask}

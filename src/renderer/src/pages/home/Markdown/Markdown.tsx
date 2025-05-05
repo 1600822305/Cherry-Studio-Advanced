@@ -370,7 +370,7 @@ const Markdown: FC<Props> = ({
           citation.addEventListener('click', (e) => {
             e.preventDefault()
             // 移除阻止冒泡，只阻止默认行为
-            // e.stopPropagation() 
+            // e.stopPropagation()
 
             // console.log('Citation clicked:', data)
 

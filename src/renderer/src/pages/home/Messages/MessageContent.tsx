@@ -1091,8 +1091,8 @@ const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
             dangerouslySetInnerHTML={{
               __html: message.metadata.groundingMetadata?.searchEntryPoint?.renderedContent
                 ? message.metadata.groundingMetadata.searchEntryPoint.renderedContent
-                  .replace(/@media \(prefers-color-scheme: light\)/g, 'body[theme-mode="light"]')
-                  .replace(/@media \(prefers-color-scheme: dark\)/g, 'body[theme-mode="dark"]')
+                    .replace(/@media \(prefers-color-scheme: light\)/g, 'body[theme-mode="light"]')
+                    .replace(/@media \(prefers-color-scheme: dark\)/g, 'body[theme-mode="dark"]')
                 : ''
             }}
           />

@@ -5,7 +5,7 @@ import {
   checkModelCombinationsInLocalStorage,
   createAllDeepClaudeProviders
 } from '@renderer/utils/createDeepClaudeProvider'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 
 /**
  * DeepClaudeProvider组件
@@ -15,29 +15,8 @@ const DeepClaudeProvider = () => {
   const dispatch = useAppDispatch()
   const providers = useAppSelector((state) => state.llm.providers)
 
-  // 监听localStorage中的modelCombinations变化
-  useEffect(() => {
-    // 初始化时加载DeepClaude提供商
-    loadDeepClaudeProviders()
-
-    // 监听localStorage变化
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'modelCombinations') {
-        loadDeepClaudeProviders()
-      }
-    }
-
-    // 添加事件监听器
-    window.addEventListener('storage', handleStorageChange)
-
-    // 清理函数
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-    }
-  }, [])
-
   // 加载DeepClaude提供商
-  const loadDeepClaudeProviders = () => {
+  const loadDeepClaudeProviders = useCallback(() => {
     console.log('[DeepClaudeProvider] 开始加载DeepClaude提供商')
 
     // 检查localStorage中的模型组合数据
@@ -81,7 +60,28 @@ const DeepClaudeProvider = () => {
       )
       console.log('[DeepClaudeProvider] DeepClaude提供商加载完成')
     }, 100)
-  }
+  }, [dispatch, providers])
+
+  // 监听localStorage中的modelCombinations变化
+  useEffect(() => {
+    // 初始化时加载DeepClaude提供商
+    loadDeepClaudeProviders()
+
+    // 监听localStorage变化
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'modelCombinations') {
+        loadDeepClaudeProviders()
+      }
+    }
+
+    // 添加事件监听器
+    window.addEventListener('storage', handleStorageChange)
+
+    // 清理函数
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [loadDeepClaudeProviders])
 
   // 这是一个纯逻辑组件，不需要渲染任何内容
   return null

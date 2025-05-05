@@ -77,13 +77,23 @@ window.chrome = {
   runtime: {
     id: undefined,
     getURL: (path) => {
-      return `chrome-extension://${chrome.runtime.id}/${path}`
+      return `chrome-extension://undefined/${path}`
     },
     connect: function () {
       return {
-        onDisconnect: { addListener: function () {} },
-        onMessage: { addListener: function () {} },
-        postMessage: function () {}
+        onDisconnect: {
+          addListener: function () {
+            /* 空方法，用于模拟Chrome API */
+          }
+        },
+        onMessage: {
+          addListener: function () {
+            /* 空方法，用于模拟Chrome API */
+          }
+        },
+        postMessage: function () {
+          /* 空方法，用于模拟Chrome API */
+        }
       }
     },
     sendMessage: function () {
@@ -100,8 +110,16 @@ window.chrome = {
         this._listeners = this._listeners.filter((listener) => listener !== callback)
       }
     },
-    onConnect: { addListener: function () {} },
-    onInstalled: { addListener: function () {} },
+    onConnect: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    },
+    onInstalled: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    },
     getManifest: function () {
       return {}
     }
@@ -144,8 +162,16 @@ window.chrome = {
     getCurrent: function () {
       return Promise.resolve({ id: 1 })
     },
-    onUpdated: { addListener: function () {} },
-    onActivated: { addListener: function () {} }
+    onUpdated: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    },
+    onActivated: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    }
   },
   storage: {
     local: {
@@ -176,7 +202,11 @@ window.chrome = {
         return Promise.resolve()
       }
     },
-    onChanged: { addListener: function () {} }
+    onChanged: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    }
   },
   contextMenus: {
     create: function () {
@@ -191,7 +221,11 @@ window.chrome = {
     removeAll: function () {
       return Promise.resolve()
     },
-    onClicked: { addListener: function () {} }
+    onClicked: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    }
   },
   cookies: {
     get: function () {
@@ -206,11 +240,15 @@ window.chrome = {
     remove: function () {
       return Promise.resolve()
     },
-    onChanged: { addListener: function () {} }
+    onChanged: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    }
   },
   extension: {
     getURL: function (path) {
-      return `chrome-extension://${chrome.runtime.id}/${path}`
+      return `chrome-extension://undefined/${path}`
     },
     getBackgroundPage: function () {
       return window
@@ -223,7 +261,7 @@ window.chrome = {
     }
   },
   i18n: {
-    getMessage: function (messageName, substitutions) {
+    getMessage: function (messageName) {
       return messageName
     }
   },
@@ -237,8 +275,16 @@ window.chrome = {
     remove: function () {
       return Promise.resolve(true)
     },
-    onAdded: { addListener: function () {} },
-    onRemoved: { addListener: function () {} }
+    onAdded: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    },
+    onRemoved: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    }
   },
   browserAction: {
     setIcon: function () {
@@ -253,7 +299,11 @@ window.chrome = {
     setTitle: function () {
       return Promise.resolve()
     },
-    onClicked: { addListener: function () {} }
+    onClicked: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    }
   },
   action: {
     setIcon: function () {
@@ -268,7 +318,11 @@ window.chrome = {
     setTitle: function () {
       return Promise.resolve()
     },
-    onClicked: { addListener: function () {} }
+    onClicked: {
+      addListener: function () {
+        /* 空方法，用于模拟Chrome API */
+      }
+    }
   }
 }
 

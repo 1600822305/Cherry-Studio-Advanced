@@ -1,8 +1,8 @@
 // src/main/mcpServers/function-plot.ts
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js'
-import Logger from 'electron-log'
 import axios from 'axios'
+import Logger from 'electron-log'
 
 // 定义函数绘图工具的参数接口
 interface PlotFunctionArgs {
@@ -167,7 +167,11 @@ function analyzeFunctionExpression(expression: string): { xMin: number; xMax: nu
     }
 
     // 检查是否是三角函数
-    if (normalizedExpression.includes('sin') || normalizedExpression.includes('cos') || normalizedExpression.includes('tan')) {
+    if (
+      normalizedExpression.includes('sin') ||
+      normalizedExpression.includes('cos') ||
+      normalizedExpression.includes('tan')
+    ) {
       // 对于三角函数，通常显示几个周期
       xMin = -2 * Math.PI
       xMax = 2 * Math.PI
@@ -448,9 +452,9 @@ class FunctionPlotServer {
               display: true,
               position: 'top',
               labels: {
-                filter: function(legendItem: { text: string }) {
+                filter: function (legendItem: { text: string }) {
                   // 只显示函数曲线的图例，隐藏坐标轴线的图例
-                  return legendItem.text === expression;
+                  return legendItem.text === expression
                 }
               }
             }
@@ -543,14 +547,15 @@ class FunctionPlotServer {
           content: [
             {
               type: 'text',
-              text: `## ${title}\n\n` +
-                   `函数: ${expression}\n` +
-                   `x 范围: [${xMin}, ${xMax}]\n` +
-                   `y 范围: [${yMin.toFixed(2)}, ${yMax.toFixed(2)}]\n\n` +
-                   `在线查看此函数:\n` +
-                   `- [在 Desmos 中查看](${desmosLink})\n` +
-                   `- [在 GeoGebra 中查看](${geogebraLink})\n` +
-                   `- [在 FunctionPlot 中查看](${functionPlotLink})\n`
+              text:
+                `## ${title}\n\n` +
+                `函数: ${expression}\n` +
+                `x 范围: [${xMin}, ${xMax}]\n` +
+                `y 范围: [${yMin.toFixed(2)}, ${yMax.toFixed(2)}]\n\n` +
+                `在线查看此函数:\n` +
+                `- [在 Desmos 中查看](${desmosLink})\n` +
+                `- [在 GeoGebra 中查看](${geogebraLink})\n` +
+                `- [在 FunctionPlot 中查看](${functionPlotLink})\n`
             },
             {
               type: 'image',
@@ -569,15 +574,16 @@ class FunctionPlotServer {
           content: [
             {
               type: 'text',
-              text: `## ${title}\n\n` +
-                   `![${expression}](${chartUrl})\n\n` +
-                   `函数: ${expression}\n` +
-                   `x 范围: [${xMin}, ${xMax}]\n` +
-                   `y 范围: [${yMin.toFixed(2)}, ${yMax.toFixed(2)}]\n\n` +
-                   `在线查看此函数:\n` +
-                   `- [在 Desmos 中查看](${desmosLink})\n` +
-                   `- [在 GeoGebra 中查看](${geogebraLink})\n` +
-                   `- [在 FunctionPlot 中查看](${functionPlotLink})\n`
+              text:
+                `## ${title}\n\n` +
+                `![${expression}](${chartUrl})\n\n` +
+                `函数: ${expression}\n` +
+                `x 范围: [${xMin}, ${xMax}]\n` +
+                `y 范围: [${yMin.toFixed(2)}, ${yMax.toFixed(2)}]\n\n` +
+                `在线查看此函数:\n` +
+                `- [在 Desmos 中查看](${desmosLink})\n` +
+                `- [在 GeoGebra 中查看](${geogebraLink})\n` +
+                `- [在 FunctionPlot 中查看](${functionPlotLink})\n`
             }
           ]
         }
@@ -606,12 +612,13 @@ class FunctionPlotServer {
           content: [
             {
               type: 'text',
-              text: `## 函数: ${expression}\n\n` +
-                   `无法生成函数图像，请使用以下链接在线查看:\n` +
-                   `- [在 Desmos 中查看](${desmosLink})\n` +
-                   `- [在 GeoGebra 中查看](${geogebraLink})\n` +
-                   `- [在 FunctionPlot 中查看](${functionPlotLink})\n\n` +
-                   `错误信息: ${error instanceof Error ? error.message : String(error)}`
+              text:
+                `## 函数: ${expression}\n\n` +
+                `无法生成函数图像，请使用以下链接在线查看:\n` +
+                `- [在 Desmos 中查看](${desmosLink})\n` +
+                `- [在 GeoGebra 中查看](${geogebraLink})\n` +
+                `- [在 FunctionPlot 中查看](${functionPlotLink})\n\n` +
+                `错误信息: ${error instanceof Error ? error.message : String(error)}`
             }
           ],
           isError: true
@@ -649,7 +656,13 @@ class FunctionPlotServer {
   }
 
   // 生成 FunctionPlot 链接
-  private generateFunctionPlotLink(expression: string, xMin: number, xMax: number, yMin?: number, yMax?: number): string {
+  private generateFunctionPlotLink(
+    expression: string,
+    xMin: number,
+    xMax: number,
+    yMin?: number,
+    yMax?: number
+  ): string {
     // 创建 FunctionPlot 配置
     const config = {
       target: '#plot',

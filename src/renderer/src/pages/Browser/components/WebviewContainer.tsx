@@ -51,10 +51,7 @@ const WebviewContainer: React.FC<WebviewContainerProps> = ({
   )
 
   return (
-    <StyledWebviewContainer
-      $chatSidebarOpen={chatSidebarOpen}
-      $chatSidebarExpanded={chatSidebarExpanded}
-    >
+    <StyledWebviewContainer $chatSidebarOpen={chatSidebarOpen} $chatSidebarExpanded={chatSidebarExpanded}>
       {showGoogleLoginTip && (
         <GoogleLoginTip onClose={onCloseGoogleTip} onUseGoogleMobile={onGoogleLogin} onClearData={onClearData} />
       )}

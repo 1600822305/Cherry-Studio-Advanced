@@ -238,7 +238,7 @@ export const buildSystemPrompt = async (
     const callStack = new Error().stack || ''
     const isOpenAIProvider = callStack.includes('OpenAIProvider')
     const isGeminiProvider = callStack.includes('GeminiProvider')
-    
+
     // 获取对应提供商的提示词调用设置
     let usePromptForToolCalling = false
     if (isOpenAIProvider) {
@@ -270,7 +270,7 @@ export const buildSystemPrompt = async (
       const geminiToolPrompt = SYSTEM_PROMPT_UNIFIED.replace('{{ TOOL_USE_EXAMPLES }}', ToolUseExamples)
         .replace('{{ AVAILABLE_TOOLS }}', AvailableTools(tools))
         .replace('{{ USER_SYSTEM_PROMPT }}', enhancedPrompt)
-      
+
       console.log('[Prompt] Using unified tool prompt for Gemini')
       finalPrompt = geminiToolPrompt
     } else {

@@ -71,52 +71,52 @@ const Messages = ({
         // 检查事件目标是否在消息容器内
         if (containerRef.current?.contains(e.target)) {
           // 确保stopPropagation和stopImmediatePropagation方法被禁用
-          const originalStopPropagation = e.stopPropagation;
-          const originalStopImmediatePropagation = e.stopImmediatePropagation;
+          const originalStopPropagation = e.stopPropagation
+          const originalStopImmediatePropagation = e.stopImmediatePropagation
 
           e.stopPropagation = function () {
-            console.log("防止了事件传播被阻止", e.type);
+            console.log('防止了事件传播被阻止', e.type)
             // 不执行原始的stopPropagation
-          };
+          }
 
           e.stopImmediatePropagation = function () {
-            console.log("防止了事件immediate传播被阻止", e.type);
+            console.log('防止了事件immediate传播被阻止', e.type)
             // 不执行原始的stopImmediatePropagation
-          };
+          }
 
           // 处理完事件后恢复原始方法
           setTimeout(() => {
-            e.stopPropagation = originalStopPropagation;
-            e.stopImmediatePropagation = originalStopImmediatePropagation;
-          }, 0);
+            e.stopPropagation = originalStopPropagation
+            e.stopImmediatePropagation = originalStopImmediatePropagation
+          }, 0)
         }
       }
-    };
+    }
 
     // 监听所有文本选择相关事件
-    document.addEventListener('mousedown', preventEventSuppression, true);
-    document.addEventListener('mouseup', preventEventSuppression, true);
-    document.addEventListener('click', preventEventSuppression, true);
-    document.addEventListener('selectstart', preventEventSuppression, true);
-    document.addEventListener('selectionchange', preventEventSuppression, true);
+    document.addEventListener('mousedown', preventEventSuppression, true)
+    document.addEventListener('mouseup', preventEventSuppression, true)
+    document.addEventListener('click', preventEventSuppression, true)
+    document.addEventListener('selectstart', preventEventSuppression, true)
+    document.addEventListener('selectionchange', preventEventSuppression, true)
 
     return () => {
-      document.removeEventListener('mousedown', preventEventSuppression, true);
-      document.removeEventListener('mouseup', preventEventSuppression, true);
-      document.removeEventListener('click', preventEventSuppression, true);
-      document.removeEventListener('selectstart', preventEventSuppression, true);
-      document.removeEventListener('selectionchange', preventEventSuppression, true);
-    };
-  }, []);
+      document.removeEventListener('mousedown', preventEventSuppression, true)
+      document.removeEventListener('mouseup', preventEventSuppression, true)
+      document.removeEventListener('click', preventEventSuppression, true)
+      document.removeEventListener('selectstart', preventEventSuppression, true)
+      document.removeEventListener('selectionchange', preventEventSuppression, true)
+    }
+  }, [])
 
   // 添加全局mouseup事件处理，确保外部划词工具栏能正常触发
   useEffect(() => {
     // 文档级别的事件处理函数，确保不会被组件层级阻隔
     const handleDocumentMouseUp = (e: MouseEvent) => {
       // 同步获取选中文本
-      const selection = window.getSelection();
+      const selection = window.getSelection()
       if (selection && selection.toString().trim().length > 0) {
-        console.log("全局文本选中处理:", selection.toString().trim().length);
+        console.log('全局文本选中处理:', selection.toString().trim().length)
 
         // 手动触发一个完全无阻拦的mouseup事件
         try {
@@ -125,7 +125,7 @@ const Messages = ({
             // 创建一个完全独立的MouseEvent
             const syntheticEvent = new MouseEvent('mouseup', {
               bubbles: true,
-              cancelable: false,  // 不可取消
+              cancelable: false, // 不可取消
               view: window,
               detail: 0,
               clientX: e.clientX,
@@ -137,25 +137,25 @@ const Messages = ({
               button: e.button,
               buttons: e.buttons,
               relatedTarget: null
-            });
+            })
 
             // 将事件分发到window级别，而不是document
             // 这可以绕过可能存在的document级事件拦截
-            window.dispatchEvent(syntheticEvent);
-          }, 10);
+            window.dispatchEvent(syntheticEvent)
+          }, 10)
         } catch (error) {
-          console.error("创建合成事件失败:", error);
+          console.error('创建合成事件失败:', error)
         }
       }
-    };
+    }
 
     // 添加到document而不是container
-    document.addEventListener('mouseup', handleDocumentMouseUp, true);
+    document.addEventListener('mouseup', handleDocumentMouseUp, true)
 
     return () => {
-      document.removeEventListener('mouseup', handleDocumentMouseUp, true);
-    };
-  }, []);
+      document.removeEventListener('mouseup', handleDocumentMouseUp, true)
+    }
+  }, [])
 
   useEffect(() => {
     messagesRef.current = messages
@@ -555,12 +555,11 @@ const Messages = ({
             pointerEvents: 'auto',
             transform: 'translate3d(0,0,0)', // 强制硬件加速
             position: 'static', // 改为static，不改变定位上下文
-            zIndex: 1  // 提高z-index确保工具栏能显示在上层
+            zIndex: 1 // 提高z-index确保工具栏能显示在上层
           }}
           scrollThreshold={0.8} // 提前触发加载更多
           initialScrollY={0}
-          className="messages-infinite-scroll enable-text-selection"
-        >
+          className="messages-infinite-scroll enable-text-selection">
           <ScrollContainer>
             <LoaderContainer $loading={isLoadingMore}>
               <BeatLoader size={8} color="var(--color-text-2)" />
@@ -605,22 +604,24 @@ interface ContainerProps {
   $right?: boolean
 }
 
-const Container = styled(Scrollbar) <ContainerProps>`
+const Container = styled(Scrollbar)<ContainerProps>`
   display: flex;
   flex-direction: column-reverse;
   padding: 10px 0 10px;
   overflow-x: hidden;
   background-color: var(--color-background);
   z-index: 1;
-  
+
   /* 确保所有消息内容可以被正确选择 */
   * {
     user-select: text !important;
     -webkit-user-select: text !important;
   }
-  
+
   /* 确保划词工具栏能正常显示 */
-  .markdown-body, .message-content-container, .message {
+  .markdown-body,
+  .message-content-container,
+  .message {
     pointer-events: auto !important;
   }
 `

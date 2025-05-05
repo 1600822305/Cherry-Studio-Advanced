@@ -335,7 +335,7 @@ interface MessageWrapperProps {
   $isInPopover?: boolean
 }
 
-const MessageWrapper = styled(Scrollbar) <MessageWrapperProps>`
+const MessageWrapper = styled(Scrollbar)<MessageWrapperProps>`
   width: 100%;
   &.horizontal {
     display: inline-block;

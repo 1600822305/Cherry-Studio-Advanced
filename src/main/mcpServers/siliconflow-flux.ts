@@ -143,7 +143,7 @@ class SiliconFlowFluxServer {
         if (!generation) {
           throw new McpError(ErrorCode.InvalidRequest, `图像生成结果未找到，索引: ${index}`)
         }
-        
+
         // 返回缓存的 API 响应和提取的 URL
         const responseData = {
           prompt: generation.prompt,
@@ -292,7 +292,7 @@ class SiliconFlowFluxServer {
     } catch (error) {
       Logger.error('[SiliconFlowFlux] 图像生成失败:', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      
+
       // 返回错误响应
       return {
         content: [

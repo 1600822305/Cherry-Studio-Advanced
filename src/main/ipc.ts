@@ -416,7 +416,7 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
     }
   })
 
-  ipcMain.handle('browser:listTabs', async (_) => {
+  ipcMain.handle('browser:listTabs', async () => {
     try {
       log.info('Listing browser tabs')
       // 向渲染进程发送请求标签页列表的消息，并等待回复

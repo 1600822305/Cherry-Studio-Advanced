@@ -63,12 +63,20 @@ export const WebviewContainer = styled.div<{ $chatSidebarOpen?: boolean; $chatSi
   height: calc(100% - 90px); // 调整高度以适应选项卡
   position: relative;
   width: 100%;
-  transition: width 0.3s ease, margin-right 0.3s ease;
-  ${(props) => props.$chatSidebarOpen && !props.$chatSidebarExpanded && `
+  transition:
+    width 0.3s ease,
+    margin-right 0.3s ease;
+  ${(props) =>
+    props.$chatSidebarOpen &&
+    !props.$chatSidebarExpanded &&
+    `
     width: calc(100% - 25%);
     margin-right: 25%;
   `}
-  ${(props) => props.$chatSidebarOpen && props.$chatSidebarExpanded && `
+  ${(props) =>
+    props.$chatSidebarOpen &&
+    props.$chatSidebarExpanded &&
+    `
     width: calc(100% - 40%);
     margin-right: 40%;
   `}

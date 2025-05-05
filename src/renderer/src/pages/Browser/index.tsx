@@ -2,8 +2,8 @@ import './styles/ChatSidebarFix.css' // 导入修复聊天侧边栏按钮点击�
 
 import { WebviewTag } from 'electron'
 import React, { useEffect, useRef, useState } from 'react'
-// import { useLocation } from 'react-router-dom' // 暂时未使用
 
+// import { useLocation } from 'react-router-dom' // 暂时未使用
 import AnimatedBrowserTabs from './components/AnimatedBrowserTabs'
 import BookmarkBar from './components/BookmarkBar'
 import BookmarkManager from './components/BookmarkManager'
@@ -19,7 +19,9 @@ import { BrowserContainer } from './styles/BrowserStyles'
 export const ChatSidebarState = {
   isOpen: false,
   isExpanded: false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setIsOpen: (_isOpen: boolean) => { },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setIsExpanded: (_isExpanded: boolean) => { }
 }
 
@@ -159,7 +161,7 @@ const Browser: React.FC = () => {
       ipcRenderer.invoke('browser:tabsListResponse', {
         success: true,
         tabs: tabsInfo,
-        activeTabIndex: tabs.findIndex(tab => tab.id === activeTabId)
+        activeTabIndex: tabs.findIndex((tab) => tab.id === activeTabId)
       })
     })
 
@@ -177,7 +179,7 @@ const Browser: React.FC = () => {
     })
 
     // 处理创建标签页请求
-    const createTabListener = ipcRenderer.on('browser:createTabRequested', (args: { url: string, title?: string }) => {
+    const createTabListener = ipcRenderer.on('browser:createTabRequested', (args: { url: string; title?: string }) => {
       console.log('收到创建标签页请求:', args)
       const { url, title } = args
       const newTabId = handleAddTab(url, title || url)

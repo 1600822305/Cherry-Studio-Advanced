@@ -367,8 +367,11 @@ export function getMcpServerByTool(tool: MCPTool) {
 }
 
 export function parseToolUse(content: string, mcpTools: MCPTool[]): MCPToolResponse[] {
-  console.log('[parseToolUse] 开始解析工具调用', { contentLength: content?.length || 0, mcpToolsCount: mcpTools?.length || 0 })
-  
+  console.log('[parseToolUse] 开始解析工具调用', {
+    contentLength: content?.length || 0,
+    mcpToolsCount: mcpTools?.length || 0
+  })
+
   if (!content || !mcpTools || mcpTools.length === 0) {
     console.log('[parseToolUse] 无内容或无工具，跳过解析')
     return []

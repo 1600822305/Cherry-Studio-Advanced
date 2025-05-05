@@ -33,7 +33,7 @@ function isLikelyCode(text: string): boolean {
   // 检查常见代码特征
   const codePatterns = [
     /\b(function|const|let|var|if|else|for|while|return|import|export|class|interface|extends|implements)\b/,
-    /[{}\[\]()]/, // 括号
+    /[{}[\]()]/, // 括号
     /\b(public|private|protected|static|final|void)\b/,
     /\b(def|async|await|try|catch|finally)\b/,
     /\b(int|string|bool|float|double)\b/,
@@ -93,7 +93,7 @@ function isLikelyCode(text: string): boolean {
   }
 
   // 检查是否包含多个连续的特殊字符，这在代码中很常见
-  if (/[{}\[\]()<>:;=+\-*/%&|^!~]+/.test(text)) {
+  if (/[{}[\]()<>:;=+\-*/%&|^!~]+/.test(text)) {
     codeFeatures++
   }
 

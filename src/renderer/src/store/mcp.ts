@@ -142,7 +142,8 @@ export const builtinMCPServers: MCPServer[] = [
     id: nanoid(),
     name: '@cherry/siliconflow-flux',
     type: 'inMemory',
-    description: '使用 SiliconFlow 的 Flux Schnell 模型生成高质量图像的 MCP 服务器。需要配置 SILICONFLOW_API_KEY 环境变量。',
+    description:
+      '使用 SiliconFlow 的 Flux Schnell 模型生成高质量图像的 MCP 服务器。需要配置 SILICONFLOW_API_KEY 环境变量。',
     env: {
       SILICONFLOW_API_KEY: ''
     },

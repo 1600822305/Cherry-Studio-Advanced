@@ -314,15 +314,15 @@ const SettingsTab: FC<Props> = (props) => {
                     options={
                       isGrokReasoningModel(assistant?.model || getDefaultModel())
                         ? [
-                          { value: 'low', label: t('assistants.settings.reasoning_effort.low') },
-                          { value: 'high', label: t('assistants.settings.reasoning_effort.high') }
-                        ]
+                            { value: 'low', label: t('assistants.settings.reasoning_effort.low') },
+                            { value: 'high', label: t('assistants.settings.reasoning_effort.high') }
+                          ]
                         : [
-                          { value: 'low', label: t('assistants.settings.reasoning_effort.low') },
-                          { value: 'medium', label: t('assistants.settings.reasoning_effort.medium') },
-                          { value: 'high', label: t('assistants.settings.reasoning_effort.high') },
-                          { value: 'off', label: t('assistants.settings.reasoning_effort.off') }
-                        ]
+                            { value: 'low', label: t('assistants.settings.reasoning_effort.low') },
+                            { value: 'medium', label: t('assistants.settings.reasoning_effort.medium') },
+                            { value: 'high', label: t('assistants.settings.reasoning_effort.high') },
+                            { value: 'off', label: t('assistants.settings.reasoning_effort.off') }
+                          ]
                     }
                     name="group"
                     block

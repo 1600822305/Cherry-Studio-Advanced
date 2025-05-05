@@ -11,7 +11,22 @@ import {
 } from '@ant-design/icons'
 import DeepResearchProvider from '@renderer/providers/WebSearchProvider/DeepResearchProvider'
 import { ResearchIteration, ResearchReport, WebSearchResult } from '@renderer/types'
-import { Button, Card, Collapse, Divider, Input, List, message, Modal, Space, Spin, Tag, Typography, Dropdown, Menu } from 'antd'
+import {
+  Button,
+  Card,
+  Collapse,
+  Divider,
+  Dropdown,
+  Input,
+  List,
+  Menu,
+  message,
+  Modal,
+  Space,
+  Spin,
+  Tag,
+  Typography
+} from 'antd'
 import React, { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -176,7 +191,7 @@ const DeepResearchPanel: React.FC = () => {
         <h2>关键见解</h2>
         <div class="insights">
           <ul>
-            ${reportToExport.keyInsights.map(insight => `<li>${insight}</li>`).join('')}
+            ${reportToExport.keyInsights.map((insight) => `<li>${insight}</li>`).join('')}
           </ul>
         </div>
 
@@ -198,7 +213,7 @@ const DeepResearchPanel: React.FC = () => {
           html += `
           <h4>后续查询</h4>
           <ul>
-            ${iteration.followUpQueries.map(q => `<li>${q}</li>`).join('')}
+            ${iteration.followUpQueries.map((q) => `<li>${q}</li>`).join('')}
           </ul>
           `
         }
@@ -208,7 +223,7 @@ const DeepResearchPanel: React.FC = () => {
       html += `
         <h2>信息来源</h2>
         <ul>
-          ${reportToExport.sources.map(source => `<li><a href="${source}" class="source-link" target="_blank">${source}</a></li>`).join('')}
+          ${reportToExport.sources.map((source) => `<li><a href="${source}" class="source-link" target="_blank">${source}</a></li>`).join('')}
         </ul>
       `
 

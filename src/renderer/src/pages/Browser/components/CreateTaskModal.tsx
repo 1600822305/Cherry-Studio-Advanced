@@ -1,6 +1,24 @@
 import { Model } from '@renderer/types'
-import { Button, Form, Input, message, Modal, Tabs, Card, List, Spin, Tag, Switch, Space, Divider, Typography, Checkbox, Radio, Select } from 'antd'
-import React, { useState, useEffect } from 'react'
+import {
+  Button,
+  Card,
+  Checkbox,
+  Divider,
+  Form,
+  Input,
+  List,
+  message,
+  Modal,
+  Radio,
+  Select,
+  Space,
+  Spin,
+  Switch,
+  Tabs,
+  Tag,
+  Typography
+} from 'antd'
+import React, { useEffect, useState } from 'react'
 
 import { AITask, generateTaskStepsWithAI } from '../utils/aiAutomation'
 
@@ -155,7 +173,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
   }
 
   // 填充模板指令
-  const useTemplate = (template: typeof TASK_TEMPLATES[0]) => {
+  const applyTemplate = (template: (typeof TASK_TEMPLATES)[0]) => {
     form.setFieldsValue({
       instruction: template.instruction
     })
@@ -199,26 +217,15 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
   }
 
   return (
-    <Modal
-      title="创建AI自动化任务"
-      open={visible}
-      onCancel={resetForm}
-      footer={null}
-      width={700}
-    >
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        style={{ marginBottom: 16 }}
-      >
+    <Modal title="创建AI自动化任务" open={visible} onCancel={resetForm} footer={null} width={700}>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>
         <TabPane tab="任务指令" key="instruction">
           <Form form={form} layout="vertical">
             <Form.Item
               name="instruction"
               label="任务指令"
               rules={[{ required: true, message: '请输入任务指令' }]}
-              help="描述你希望AI助手执行的任务，具体越好效果越好"
-            >
+              help="描述你希望AI助手执行的任务，具体越好效果越好">
               <TextArea
                 placeholder="例如：搜索人工智能最新进展并总结前三个结果"
                 rows={3}
@@ -236,13 +243,14 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
                     size="small"
                     title={template.title}
                     style={{ width: 200, marginBottom: 8, cursor: 'pointer' }}
-                    onClick={() => useTemplate(template)}
-                    hoverable
-                  >
+                    onClick={() => applyTemplate(template)}
+                    hoverable>
                     <div style={{ fontSize: 12, marginBottom: 8 }}>{template.description}</div>
                     <div>
-                      {template.tags.map(tag => (
-                        <Tag key={tag} color="blue">{tag}</Tag>
+                      {template.tags.map((tag) => (
+                        <Tag key={tag} color="blue">
+                          {tag}
+                        </Tag>
                       ))}
                     </div>
                   </Card>
@@ -254,13 +262,10 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
 
             <div style={{ marginBottom: 16 }}>
               <Space style={{ marginBottom: 16 }}>
-                <Title level={5} style={{ margin: 0 }}>任务步骤预览</Title>
-                <Button
-                  type="default"
-                  size="small"
-                  onClick={handleGeneratePreview}
-                  disabled={isGeneratingPreview}
-                >
+                <Title level={5} style={{ margin: 0 }}>
+                  任务步骤预览
+                </Title>
+                <Button type="default" size="small" onClick={handleGeneratePreview} disabled={isGeneratingPreview}>
                   生成预览
                 </Button>
               </Space>
@@ -291,10 +296,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
 
             <div style={{ marginBottom: 16 }}>
               <Space align="center">
-                <Switch
-                  checked={advancedOptions}
-                  onChange={setAdvancedOptions}
-                />
+                <Switch checked={advancedOptions} onChange={setAdvancedOptions} />
                 <Text strong>高级选项</Text>
               </Space>
             </div>
@@ -304,11 +306,12 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
                 <Form.Item
                   name="customSteps"
                   label="自定义步骤（每行一个步骤）"
-                  help="可以根据预览修改或自定义任务步骤"
-                >
+                  help="可以根据预览修改或自定义任务步骤">
                   <TextArea
                     rows={5}
-                    placeholder={'例如：\n搜索"人工智能最新进展"\n分析搜索结果页面\n点击最相关的搜索结果\n分析页面内容并提取相关信息'}
+                    placeholder={
+                      '例如：\n搜索"人工智能最新进展"\n分析搜索结果页面\n点击最相关的搜索结果\n分析页面内容并提取相关信息'
+                    }
                     disabled={isLoading}
                   />
                 </Form.Item>
@@ -319,8 +322,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
                     <Radio.Group
                       value={taskComplexity}
                       onChange={(e) => setTaskComplexity(e.target.value)}
-                      style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
-                    >
+                      style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <Radio value="simple">简单 (单一查询)</Radio>
                       <Radio value="medium">中等 (多步骤)</Radio>
                       <Radio value="complex">复杂 (多任务/比较/分析)</Radio>
@@ -333,7 +335,9 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
                       <Checkbox checked={enableRetry} onChange={(e) => setEnableRetry(e.target.checked)}>
                         启用步骤重试
                       </Checkbox>
-                      <Checkbox checked={enableErrorRecovery} onChange={(e) => setEnableErrorRecovery(e.target.checked)}>
+                      <Checkbox
+                        checked={enableErrorRecovery}
+                        onChange={(e) => setEnableErrorRecovery(e.target.checked)}>
                         启用智能错误恢复
                       </Checkbox>
                     </div>
@@ -341,11 +345,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
 
                   <div style={{ minWidth: '200px' }}>
                     <Title level={5}>搜索引擎偏好</Title>
-                    <Select
-                      style={{ width: '100%' }}
-                      value={searchEngine}
-                      onChange={(value) => setSearchEngine(value)}
-                    >
+                    <Select style={{ width: '100%' }} value={searchEngine} onChange={(value) => setSearchEngine(value)}>
                       <Option value="baidu">百度</Option>
                       <Option value="google">谷歌</Option>
                       <Option value="bing">必应</Option>
@@ -356,13 +356,8 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
                 <Form.Item
                   name="initialState"
                   label="自定义初始状态（JSON格式）"
-                  help="高级用户可以设置任务的初始状态数据"
-                >
-                  <TextArea
-                    rows={3}
-                    placeholder={'{"key1": "value1", "key2": "value2"}'}
-                    disabled={isLoading}
-                  />
+                  help="高级用户可以设置任务的初始状态数据">
+                  <TextArea rows={3} placeholder={'{"key1": "value1", "key2": "value2"}'} disabled={isLoading} />
                 </Form.Item>
               </>
             )}
@@ -399,23 +394,45 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ visible, onClose, onC
           <Title level={5}>支持的任务类型</Title>
           <Paragraph>
             <ul>
-              <li><Text strong>搜索和提取信息</Text>：搜索特定主题并提取相关信息</li>
-              <li><Text strong>比较分析</Text>：搜索并比较不同主题的信息</li>
-              <li><Text strong>网站浏览</Text>：访问特定网站并分析内容</li>
-              <li><Text strong>点击交互</Text>：点击链接、按钮等网页元素</li>
-              <li><Text strong>资源收集</Text>：收集特定主题的资源和信息</li>
-              <li><Text strong>复杂多步骤任务</Text>：执行需要多次决策的复杂操作</li>
+              <li>
+                <Text strong>搜索和提取信息</Text>：搜索特定主题并提取相关信息
+              </li>
+              <li>
+                <Text strong>比较分析</Text>：搜索并比较不同主题的信息
+              </li>
+              <li>
+                <Text strong>网站浏览</Text>：访问特定网站并分析内容
+              </li>
+              <li>
+                <Text strong>点击交互</Text>：点击链接、按钮等网页元素
+              </li>
+              <li>
+                <Text strong>资源收集</Text>：收集特定主题的资源和信息
+              </li>
+              <li>
+                <Text strong>复杂多步骤任务</Text>：执行需要多次决策的复杂操作
+              </li>
             </ul>
           </Paragraph>
 
           <Title level={5}>高级选项说明</Title>
           <Paragraph>
             <ul>
-              <li><Text strong>自定义步骤</Text>：手动编辑或调整AI生成的执行步骤</li>
-              <li><Text strong>任务复杂度</Text>：设置任务的复杂程度，影响执行策略</li>
-              <li><Text strong>错误处理</Text>：配置任务遇到问题时的重试和恢复策略</li>
-              <li><Text strong>搜索引擎偏好</Text>：选择执行搜索操作时使用的默认引擎</li>
-              <li><Text strong>自定义初始状态</Text>：为高级用户提供的任务状态初始化选项</li>
+              <li>
+                <Text strong>自定义步骤</Text>：手动编辑或调整AI生成的执行步骤
+              </li>
+              <li>
+                <Text strong>任务复杂度</Text>：设置任务的复杂程度，影响执行策略
+              </li>
+              <li>
+                <Text strong>错误处理</Text>：配置任务遇到问题时的重试和恢复策略
+              </li>
+              <li>
+                <Text strong>搜索引擎偏好</Text>：选择执行搜索操作时使用的默认引擎
+              </li>
+              <li>
+                <Text strong>自定义初始状态</Text>：为高级用户提供的任务状态初始化选项
+              </li>
             </ul>
           </Paragraph>
         </TabPane>
