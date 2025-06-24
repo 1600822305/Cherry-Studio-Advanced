@@ -41,7 +41,10 @@
       "add.prompt": "Prompt",
       "add.prompt.placeholder": "Enter prompt",
       "add.title": "Create Agent",
-      "delete.popup.content": "Are you sure you want to delete this agent?",
+      "export": {
+    "agent": "Export Agent"
+  },
+  "delete.popup.content": "Are you sure you want to delete this agent?",
       "edit.message.add.title": "Add",
       "edit.message.assistant.placeholder": "Enter assistant message",
       "edit.message.assistant.title": "Assistant",
@@ -154,6 +157,10 @@
       "default.description": "Hello, I'm Default Assistant. You can start chatting with me right away",
       "default.name": "Default Assistant",
       "default.topic.name": "Default Topic",
+      "topic": {
+        "total_tokens": "Total Tokens",
+        "total_tokens.tip": "Total token count used in this conversation history"
+      },
       "tts": {
         "play": "Play speech",
         "stop": "Stop playback",
@@ -197,6 +204,7 @@
       "input.web_search.button.ok": "Go to Settings",
       "input.web_search.enable": "Enable web search",
       "input.web_search.enable_content": "Need to check web search connectivity in settings first",
+      "input.agent_mode": "Agent Mode",
       "message.new.branch": "New Branch",
       "message.new.branch.created": "New Branch Created",
       "message.new.context": "New Context",
@@ -740,12 +748,18 @@
         "openExternal": "Open in Browser",
         "rightclick_copyurl": "Right-click to copy URL"
       },
-      "sidebar.add.title": "Add to sidebar",
-      "sidebar.remove.title": "Remove from sidebar",
-      "sidebar.close.title": "Close",
-      "sidebar.closeall.title": "Close All",
-      "sidebar.hide.title": "Hide MinApp",
-      "title": "MinApp"
+      "sidebar": {
+        "add": {
+          "title": "Add to Sidebar"
+        },
+        "remove": {
+          "title": "Remove from Sidebar"
+        },
+        "hide": {
+          "title": "Hide Mini App"
+        }
+      },
+      "title": "Mini Apps"
     },
     "miniwindow": {
       "clipboard": {
@@ -1168,19 +1182,39 @@
       "display.sidebar.visible": "Show icons",
       "display.title": "Display Settings",
       "display.topic.title": "Topic Settings",
+      "display.inputbar.title": "Input Bar Button Settings",
+      "display.inputbar.description": "Select which buttons to show in the input bar",
       "miniapps": {
         "title": "Mini Apps Settings",
-        "disabled": "Hidden Mini Apps",
-        "empty": "Drag mini apps from the left to hide them",
-        "visible": "Visible Mini Apps",
-        "cache_settings": "Cache Settings",
-        "cache_title": "Mini App Cache Limit",
-        "cache_description": "Set the maximum number of active mini apps to keep in memory",
+        "display_title": "Mini Apps Display",
+        "cache_title": "Cache Count",
+        "cache_description": "Maximum number of mini apps to keep open simultaneously",
+        "cache_change_notice": "Settings saved, will take effect on next startup",
         "reset_tooltip": "Reset to default",
-        "display_title": "Mini App Display Settings",
-        "sidebar_title": "Sidebar Active Mini Apps Display",
-        "sidebar_description": "Show active mini apps in the sidebar",
-        "cache_change_notice": "Changes will take effect when the number of open mini apps reaches the set value"
+        "sidebar_title": "Sidebar Display",
+        "sidebar_description": "Show opened mini apps in sidebar",
+        "visible": "Visible",
+        "disabled": "Hidden",
+        "empty": "No hidden mini apps",
+        "custom": {
+          "title": "Custom Mini Apps",
+          "add_title": "Add Custom Mini App",
+          "edit_title": "Edit Custom Mini App",
+          "add_button": "Add Mini App",
+          "name": "Name",
+          "name_required": "Please enter mini app name",
+          "name_placeholder": "Enter mini app name",
+          "url": "URL",
+          "url_required": "Please enter mini app URL",
+          "url_invalid": "Please enter a valid URL",
+          "url_placeholder": "Enter mini app URL",
+          "icon": "Icon",
+          "upload_icon": "Upload Icon",
+          "icon_hint": "Square icons recommended, PNG, JPG, SVG formats supported",
+          "remove_icon": "Remove Icon",
+          "empty": "No custom mini apps yet",
+          "delete_confirm": "Are you sure you want to delete this custom mini app?"
+        }
       },
       "font_size.title": "Message font size",
       "general": "General Settings",
@@ -2008,6 +2042,44 @@
       "tooltip.newline": "Newline",
       "menu": {
         "description": "Translate the content of the current input box"
+      }
+    },
+    "polish": {
+      "title": "Polish Text",
+      "confirm": {
+        "title": "Polish Confirmation",
+        "content": "Polishing will replace the original text. Continue?"
+      },
+      "processing": "Polishing text...",
+      "error": {
+        "failed": "Polishing failed",
+        "not_configured": "Polishing model not configured"
+      },
+      "success": "Text polished successfully",
+      "menu": {
+        "description": "Improve the expression of current input text"
+      }
+    },
+    "deep_thinking": {
+      "title": "Deep Thinking",
+      "confirm": {
+        "title": "Deep Thinking Confirmation",
+        "content": "Enabling deep thinking mode will make AI perform multiple rounds of thinking. Continue?"
+      },
+      "processing": "Thinking...",
+      "error": {
+        "failed": "Deep thinking failed",
+        "not_configured": "Deep thinking model not configured"
+      },
+      "success": "Deep thinking completed",
+      "thinking_block": "Thinking Process",
+      "final_answer": "Final Conclusion",
+      "continue_thinking": "Continue Thinking",
+      "complete_thinking": "Complete Thinking",
+      "thinking_in_progress": "Thinking in progress...",
+      "thinking_completed": "Thinking completed",
+      "menu": {
+        "description": "Enable multi-round thinking mode to enhance AI reasoning ability"
       }
     },
     "tray": {

@@ -9,7 +9,10 @@
       "add.prompt": "プロンプト",
       "add.prompt.placeholder": "プロンプトを入力",
       "add.title": "エージェントを作成",
-      "delete.popup.content": "このエージェントを削除してもよろしいですか？",
+      "export": {
+    "agent": "エージェントをエクスポート"
+  },
+  "delete.popup.content": "このエージェントを削除してもよろしいですか？",
       "edit.message.add.title": "追加",
       "edit.message.assistant.placeholder": "アシスタントのメッセージを入力",
       "edit.message.assistant.title": "アシスタント",

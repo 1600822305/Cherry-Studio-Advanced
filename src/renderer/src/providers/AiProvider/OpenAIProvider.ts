@@ -157,18 +157,27 @@ export default class OpenAIProvider extends BaseProvider {
     }
 
     for (const file of message.files || []) {
-      if (file.type === FileTypes.IMAGE && isVision) {
-        const image = await window.api.file.base64Image(file.id + file.ext)
-        parts.push({
-          type: 'image_url',
-          image_url: { url: image.data }
-        })
-      }
-      if ([FileTypes.TEXT, FileTypes.DOCUMENT].includes(file.type)) {
-        const fileContent = await (await window.api.file.read(file.id + file.ext)).trim()
+      try {
+        if (file.type === FileTypes.IMAGE && isVision) {
+          const image = await window.api.file.base64Image(file.id + file.ext)
+          parts.push({
+            type: 'image_url',
+            image_url: { url: image.data }
+          })
+        }
+        if ([FileTypes.TEXT, FileTypes.DOCUMENT].includes(file.type)) {
+          const fileContent = await (await window.api.file.read(file.id + file.ext)).trim()
+          parts.push({
+            type: 'text',
+            text: file.origin_name + '\n' + fileContent
+          })
+        }
+      } catch (error) {
+        console.error(`[OpenAIProvider] Failed to process file ${file.origin_name}:`, error)
+        // 添加错误信息到消息中，但不中断整个对话
         parts.push({
           type: 'text',
-          text: file.origin_name + '\n' + fileContent
+          text: `[文件读取失败: ${file.origin_name} - ${error instanceof Error ? error.message : '未知错误'}]`
         })
       }
     }

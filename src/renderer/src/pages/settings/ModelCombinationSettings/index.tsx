@@ -147,21 +147,21 @@ const ModelCombinationSettings: FC = () => {
       name: c.name,
       reasonerModel: c.reasonerModel
         ? {
-            id: c.reasonerModel.id,
-            name: c.reasonerModel.name,
-            provider: c.reasonerModel.provider,
-            group: c.reasonerModel.group,
-            type: c.reasonerModel.type
-          }
+          id: c.reasonerModel.id,
+          name: c.reasonerModel.name,
+          provider: c.reasonerModel.provider,
+          group: c.reasonerModel.group,
+          type: c.reasonerModel.type
+        }
         : null,
       targetModel: c.targetModel
         ? {
-            id: c.targetModel.id,
-            name: c.targetModel.name,
-            provider: c.targetModel.provider,
-            group: c.targetModel.group,
-            type: c.targetModel.type
-          }
+          id: c.targetModel.id,
+          name: c.targetModel.name,
+          provider: c.targetModel.provider,
+          group: c.targetModel.group,
+          type: c.targetModel.type
+        }
         : null,
       isActive: c.isActive
     }))

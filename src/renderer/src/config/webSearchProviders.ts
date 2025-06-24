@@ -1,3 +1,4 @@
+import BochaLogo from '@renderer/assets/images/search/bocha.webp'
 import ExaLogo from '@renderer/assets/images/search/exa.png'
 import SearxngLogo from '@renderer/assets/images/search/searxng.svg'
 import TavilyLogo from '@renderer/assets/images/search/tavily.png'
@@ -9,6 +10,8 @@ export function getWebSearchProviderLogo(providerId: string) {
       return SearxngLogo
     case 'exa':
       return ExaLogo
+    case 'bocha':
+      return BochaLogo
     default:
       return undefined
   }
@@ -30,6 +33,12 @@ export const WEB_SEARCH_PROVIDER_CONFIG = {
     websites: {
       official: 'https://exa.ai',
       apiKey: 'https://dashboard.exa.ai/api-keys'
+    }
+  },
+  bocha: {
+    websites: {
+      official: 'https://bochaai.com',
+      apiKey: 'https://open.bochaai.com/overview'
     }
   },
   jina: {

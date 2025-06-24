@@ -251,15 +251,27 @@ class FileStorage {
     _: Electron.IpcMainInvokeEvent,
     id: string
   ): Promise<{ mime: string; base64: string; data: string }> => {
-    const filePath = path.join(this.storageDir, id)
-    const data = await fs.promises.readFile(filePath)
-    const base64 = data.toString('base64')
-    const ext = path.extname(filePath).slice(1) == 'jpg' ? 'jpeg' : path.extname(filePath).slice(1)
-    const mime = `image/${ext}`
-    return {
-      mime,
-      base64,
-      data: `data:${mime};base64,${base64}`
+    try {
+      const filePath = path.join(this.storageDir, id)
+
+      // 检查文件是否存在
+      if (!fs.existsSync(filePath)) {
+        logger.warn(`[FileStorage] File not found: ${filePath}`)
+        throw new Error(`File not found: ${filePath}`)
+      }
+
+      const data = await fs.promises.readFile(filePath)
+      const base64 = data.toString('base64')
+      const ext = path.extname(filePath).slice(1) == 'jpg' ? 'jpeg' : path.extname(filePath).slice(1)
+      const mime = `image/${ext}`
+      return {
+        mime,
+        base64,
+        data: `data:${mime};base64,${base64}`
+      }
+    } catch (error: any) {
+      logger.error(`[FileStorage] Error reading base64 image ${id}:`, error)
+      throw new Error(`Failed to read image file: ${error.message}`)
     }
   }
 
@@ -287,18 +299,42 @@ class FileStorage {
   }
 
   public base64File = async (_: Electron.IpcMainInvokeEvent, id: string): Promise<{ data: string; mime: string }> => {
-    const filePath = path.join(this.storageDir, id)
-    const buffer = await fs.promises.readFile(filePath)
-    const base64 = buffer.toString('base64')
-    const mime = `application/${path.extname(filePath).slice(1)}`
-    return { data: base64, mime }
+    try {
+      const filePath = path.join(this.storageDir, id)
+
+      // 检查文件是否存在
+      if (!fs.existsSync(filePath)) {
+        logger.warn(`[FileStorage] File not found: ${filePath}`)
+        throw new Error(`File not found: ${filePath}`)
+      }
+
+      const buffer = await fs.promises.readFile(filePath)
+      const base64 = buffer.toString('base64')
+      const mime = `application/${path.extname(filePath).slice(1)}`
+      return { data: base64, mime }
+    } catch (error: any) {
+      logger.error(`[FileStorage] Error reading base64 file ${id}:`, error)
+      throw new Error(`Failed to read file: ${error.message}`)
+    }
   }
 
   public binaryFile = async (_: Electron.IpcMainInvokeEvent, id: string): Promise<{ data: Buffer; mime: string }> => {
-    const filePath = path.join(this.storageDir, id)
-    const data = await fs.promises.readFile(filePath)
-    const mime = `image/${path.extname(filePath).slice(1)}`
-    return { data, mime }
+    try {
+      const filePath = path.join(this.storageDir, id)
+
+      // 检查文件是否存在
+      if (!fs.existsSync(filePath)) {
+        logger.warn(`[FileStorage] File not found: ${filePath}`)
+        throw new Error(`File not found: ${filePath}`)
+      }
+
+      const data = await fs.promises.readFile(filePath)
+      const mime = `image/${path.extname(filePath).slice(1)}`
+      return { data, mime }
+    } catch (error: any) {
+      logger.error(`[FileStorage] Error reading binary file ${id}:`, error)
+      throw new Error(`Failed to read binary file: ${error.message}`)
+    }
   }
 
   public clear = async (): Promise<void> => {

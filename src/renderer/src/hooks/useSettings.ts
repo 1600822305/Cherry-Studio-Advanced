@@ -1,9 +1,11 @@
 import store, { useAppDispatch, useAppSelector } from '@renderer/store'
 import {
   AssistantIconType,
+  InputBarButton,
   SendMessageShortcut,
   setAssistantIconType,
   setEnableDataCollection as _setEnableDataCollection,
+  setInputBarDisabledButtons,
   setLaunchOnBoot,
   setLaunchToTray,
   setSendMessageShortcut as _setSendMessageShortcut,
@@ -36,6 +38,7 @@ export function useSettings(): SettingsState & {
   agentAutoExecutionCount: number
   setShowAgentTaskList: (show: boolean) => void
   setAgentAutoExecutionCount: (count: number) => void
+  setInputBarDisabledButtons: (buttons: InputBarButton[]) => void
 } {
   const settings = useAppSelector((state) => state.settings)
   const dispatch = useAppDispatch()
@@ -113,6 +116,11 @@ export function useSettings(): SettingsState & {
     setAgentAutoExecutionCount(count: number) {
       const { setAgentAutoExecutionCount } = require('@renderer/store/settings')
       dispatch(setAgentAutoExecutionCount(count))
+    },
+
+    // 添加设置禁用输入框按钮的函数
+    setInputBarDisabledButtons(buttons: InputBarButton[]) {
+      dispatch(setInputBarDisabledButtons(buttons))
     }
   }
 }

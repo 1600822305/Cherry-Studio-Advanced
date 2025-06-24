@@ -108,14 +108,15 @@ const glmZeroPreviewProcessor: ThoughtProcessor = {
     const isGLMZeroPreview =
       modelId.toLowerCase().includes('glm-zero-preview') || modelName.toLowerCase().includes('glm-zero-preview')
 
-    // 增强检测能力，支持更多格式
-    return (
-      isGLMZeroPreview &&
-      (content.includes('###Thinking') ||
-        content.includes('### Thinking') ||
-        content.includes('###思考') ||
-        content.includes('### 思考'))
-    )
+    // 更严格的检测标准，要求同时满足模型类型和特定的格式标记
+    const hasThinkingMarker = 
+      /^###\s*Thinking/m.test(content) || 
+      /^###\s*思考/m.test(content) || 
+      (content.includes('###Thinking') && content.includes('###Response')) ||
+      (content.includes('### Thinking') && content.includes('### Response')) ||
+      (content.includes('###思考') && content.includes('###回应'));
+      
+    return isGLMZeroPreview && hasThinkingMarker;
   },
   process: (content: string) => {
     // 支持多种分隔符格式
@@ -189,11 +190,31 @@ const glmZeroPreviewProcessor: ThoughtProcessor = {
 }
 
 const thinkTagProcessor: ThoughtProcessor = {
-  canProcess: (_content: string, message?: Message) => {
+  canProcess: (content: string, message?: Message) => {
     if (!message) return false
 
-    // 大幅放宽检测能力，支持更多格式
-    return true // 尝试处理所有消息，让process方法决定是否能提取思考过程
+    // 更严格地检测真正的思考过程标签
+    // 1. 检查是否包含明确的思考标签
+    const hasThinkTag = 
+      /<think>|<thinking>|<thoughts>|<thought>|<reasoning>|<reason>|<analysis>|<reflection>/i.test(content) ||
+      /<\/think>|<\/thinking>|<\/thoughts>|<\/thought>|<\/reasoning>|<\/reason>|<\/analysis>|<\/reflection>/i.test(content);
+      
+    // 2. 检查是否包含明确的思考过程标记
+    const hasThinkLabel = 
+      /^思考过程[:：]/m.test(content) ||
+      /^推理过程[:：]/m.test(content) ||
+      /^思考[:：]/m.test(content) ||
+      /^分析[:：]/m.test(content) ||
+      /^Thinking[:：]/m.test(content) ||
+      /^Reasoning[:：]/m.test(content) ||
+      /^Analysis[:：]/m.test(content);
+      
+    // 3. 排除常见误判情况
+    const isLikelyMathContent = 
+      (content.includes('$a_') && content.includes('\\cdot')) ||
+      (content.includes('题目') && content.includes('解答'));
+      
+    return (hasThinkTag || hasThinkLabel) && !isLikelyMathContent;
   },
   process: (content: string) => {
     // 1. 处理正常闭合的 think 标签 - 支持多行匹配
@@ -408,14 +429,23 @@ const openaiJsonProcessor: ThoughtProcessor = {
   canProcess: (content: string, message?: Message) => {
     if (!message) return false
 
-    // 检查是否包含OpenAI格式的JSON流式输出特征
-    return (
-      content.includes('data: {"id":"chatcmpl-') ||
-      content.includes('data: {"id":') ||
-      content.includes('data: [DONE]') ||
-      // 新增对通用流式JSON格式的检测
-      /data:\s*\{.*?"choices":\s*\[\{.*?"delta":\s*\{.*?"content":/i.test(content)
-    )
+    // 使用更严格的条件检查是否包含OpenAI格式的JSON流式输出特征
+    const containsOpenAIJsonHeader = 
+      /^data: \{"id":"chatcmpl-/m.test(content) || 
+      /^data: \{"id":.*?"model":/m.test(content);
+    
+    // 检查是否包含标准OpenAI流式响应格式
+    const containsOpenAIStreamFormat = 
+      /data:\s*\{.*?"choices":\s*\[\{.*?"delta":\s*\{.*?"content":/i.test(content) &&
+      /^data:/m.test(content);
+    
+    // 添加明确的排除条件，避免误判普通HTML或Markdown内容
+    const isLikelyNormalContent = 
+      (content.includes('<p>') && content.includes('</p>')) || 
+      (content.includes('#') && content.includes('```')) ||
+      (content.includes('|') && content.includes('---') && content.includes('|'));
+      
+    return (containsOpenAIJsonHeader || containsOpenAIStreamFormat) && !isLikelyNormalContent;
   },
   process: (content: string) => {
     try {
@@ -766,11 +796,17 @@ const jsonThoughtProcessor: ThoughtProcessor = {
   canProcess: (content: string, message?: Message) => {
     if (!message) return false
 
-    // 检查是否包含JSON格式的思考标签
-    const hasJsonThinking = /\{\s*["'](?:thinking|thought|reasoning|thoughts|analysis|reflection)["']\s*:/i.test(
-      content
-    )
-    return hasJsonThinking
+    // 检查是否包含JSON格式的思考标签 - 更严格的匹配条件
+    // 1. 必须是完整的JSON格式，以{开始，以}结束
+    // 2. 必须包含thinking/thought/reasoning等关键词作为JSON键
+    const strictJsonPattern = /^\s*\{\s*["'](?:thinking|thought|reasoning|thoughts|analysis|reflection)["']\s*:\s*["'][\s\S]*?["']\s*\}\s*$/i
+    
+    // 多行模式下，识别完整的JSON对象
+    const multilineJsonPattern = /\{\s*["'](?:thinking|thought|reasoning|thoughts|analysis|reflection)["']\s*:\s*["'][\s\S]*?["']\s*\}/i
+    
+    // 只有在内容看起来确实像JSON时才返回true
+    return strictJsonPattern.test(content) || 
+           (multilineJsonPattern.test(content) && content.includes('{') && content.includes('}'));
   },
   process: (content: string) => {
     try {
@@ -854,6 +890,26 @@ export function withMessageThought(message: Message) {
 
   // 获取原始内容并处理
   const originalContent = message.content.trim()
+  
+  // === 0. 特殊检测：排除明显不是思考过程的内容 ===
+  // 排除数学内容
+  if (
+    (originalContent.includes('$a_') && originalContent.includes('等比数列')) ||
+    (originalContent.includes('题目') && originalContent.includes('完全正确')) ||
+    (originalContent.includes('你的计算结果') && originalContent.includes('正确'))
+  ) {
+    return message;
+  }
+  
+  // 排除常见的普通对话内容
+  if (
+    (originalContent.startsWith('非常棒！') || originalContent.startsWith('很好！')) &&
+    originalContent.includes('题目') &&
+    !originalContent.includes('<think>') &&
+    !originalContent.includes('思考过程：')
+  ) {
+    return message;
+  }
 
   // === 1. 首先尝试直接提取<think>标签 ===
   const thinkPattern = /<think>([\s\S]*?)<\/think>/i

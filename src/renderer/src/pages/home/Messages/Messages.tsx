@@ -522,19 +522,19 @@ const Messages = ({
             -ms-user-select: text !important;
             cursor: text;
           }
-          
+
           /* 固定第三方工具栏问题 - 从通用选择器中移除position设置 */
           .enable-text-selection {
             position: relative !important;
             z-index: 10 !important;
           }
-          
+
           /* 确保滚动容器不会阻止事件冒泡 */
           #messages {
             pointer-events: auto !important;
             overflow-x: hidden !important;
           }
-          
+
           /* 防止长按选择被阻止 */
           #messages, #messages * {
             touch-action: auto !important;
@@ -542,6 +542,7 @@ const Messages = ({
           }
         `}
       </style>
+
       <NarrowLayout style={{ display: 'flex', flexDirection: 'column-reverse' }}>
         <InfiniteScroll
           dataLength={displayMessages.length}
@@ -604,7 +605,9 @@ interface ContainerProps {
   $right?: boolean
 }
 
-const Container = styled(Scrollbar)<ContainerProps>`
+
+
+const Container = styled(Scrollbar) <ContainerProps>`
   display: flex;
   flex-direction: column-reverse;
   padding: 10px 0 10px;

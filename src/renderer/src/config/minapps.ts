@@ -1,4 +1,6 @@
+import n8nLogo from '@renderer/assets/images/apps/n8n.ico?url'
 import ThreeMinTopAppLogo from '@renderer/assets/images/apps/3mintop.png?url'
+import ParateraLogo from '@renderer/assets/images/apps/paratera.ico?url'
 import AbacusLogo from '@renderer/assets/images/apps/abacus.webp?url'
 import BaiduAiAppLogo from '@renderer/assets/images/apps/baidu-ai.png?url'
 import BaiduAiSearchLogo from '@renderer/assets/images/apps/baidu-ai-search.webp?url'
@@ -361,6 +363,12 @@ export const DEFAULT_MIN_APPS: MinAppType[] = [
     bodered: true
   },
   {
+    id: 'paratera',
+    name: 'ParateraAI',
+    logo: ParateraLogo,
+    url: 'https://ai.paratera.com/'
+  },
+  {
     id: 'lambdachat',
     name: 'Lambda Chat',
     logo: LambdaChatLogo,
@@ -399,6 +407,13 @@ export const DEFAULT_MIN_APPS: MinAppType[] = [
     name: `Z.ai`,
     logo: ZaiAppLogo,
     url: `https://chat.z.ai/`,
+    bodered: true
+  },
+  {
+    id: 'n8n',
+    name: 'n8n',
+    logo: n8nLogo,
+    url: 'https://app.n8n.cloud/',
     bodered: true
   }
 ]

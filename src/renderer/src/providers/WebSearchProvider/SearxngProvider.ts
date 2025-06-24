@@ -9,15 +9,13 @@ import BaseWebSearchProvider from './BaseWebSearchProvider'
 export default class SearxngProvider extends BaseWebSearchProvider {
   private searxng: SearxngClient
   private engines: string[] = []
-  private readonly apiHost: string
   private isInitialized = false
 
   constructor(provider: WebSearchProvider) {
     super(provider)
-    if (!provider.apiHost) {
+    if (!this.apiHost) {
       throw new Error('API host is required for SearxNG provider')
     }
-    this.apiHost = provider.apiHost
     try {
       this.searxng = new SearxngClient({ apiBaseUrl: this.apiHost })
     } catch (error) {

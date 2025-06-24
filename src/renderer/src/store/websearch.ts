@@ -115,7 +115,15 @@ const initialState: WebSearchState = {
     {
       id: 'exa',
       name: 'Exa',
-      apiKey: ''
+      apiKey: '',
+      apiHost: 'https://api.exa.ai'
+    },
+    {
+      id: 'bocha',
+      name: 'Bocha',
+      apiKey: '',
+      apiHost: 'https://open.bochaai.com',
+      description: 'Bocha AI搜索服务，支持多语言搜索'
     },
     {
       id: 'jina',

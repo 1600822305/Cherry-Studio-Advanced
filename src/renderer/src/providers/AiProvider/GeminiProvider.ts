@@ -216,25 +216,33 @@ export default class GeminiProvider extends BaseProvider {
     }
 
     for (const file of message.files || []) {
-      if (file.type === FileTypes.IMAGE) {
-        const base64Data = await window.api.file.base64Image(file.id + file.ext)
-        parts.push({
-          inlineData: {
-            data: base64Data.base64,
-            mimeType: base64Data.mime
-          }
-        } as InlineDataPart)
-      }
+      try {
+        if (file.type === FileTypes.IMAGE) {
+          const base64Data = await window.api.file.base64Image(file.id + file.ext)
+          parts.push({
+            inlineData: {
+              data: base64Data.base64,
+              mimeType: base64Data.mime
+            }
+          } as InlineDataPart)
+        }
 
-      if (file.ext === '.pdf') {
-        parts.push(await this.handlePdfFile(file))
-        continue
-      }
+        if (file.ext === '.pdf') {
+          parts.push(await this.handlePdfFile(file))
+          continue
+        }
 
-      if ([FileTypes.TEXT, FileTypes.DOCUMENT].includes(file.type)) {
-        const fileContent = await (await window.api.file.read(file.id + file.ext)).trim()
+        if ([FileTypes.TEXT, FileTypes.DOCUMENT].includes(file.type)) {
+          const fileContent = await (await window.api.file.read(file.id + file.ext)).trim()
+          parts.push({
+            text: file.origin_name + '\n' + fileContent
+          } as TextPart)
+        }
+      } catch (error) {
+        console.error(`[GeminiProvider] Failed to process file ${file.origin_name}:`, error)
+        // 添加错误信息到消息中，但不中断整个对话
         parts.push({
-          text: file.origin_name + '\n' + fileContent
+          text: `[文件读取失败: ${file.origin_name} - ${error instanceof Error ? error.message : '未知错误'}]`
         } as TextPart)
       }
     }
@@ -1444,11 +1452,16 @@ export default class GeminiProvider extends BaseProvider {
   private async addImageFileToContents(message: Message, contents: ContentListUnion): Promise<ContentListUnion> {
     if (message.files && message.files.length > 0) {
       const file = message.files[0]
-      const fileContent = await window.api.file.base64Image(file.id + file.ext)
+      try {
+        const fileContent = await window.api.file.base64Image(file.id + file.ext)
 
-      if (fileContent && fileContent.base64) {
-        const contentsArray = Array.isArray(contents) ? contents : [contents]
-        return [...contentsArray, createPartFromBase64(fileContent.base64, fileContent.mime)]
+        if (fileContent && fileContent.base64) {
+          const contentsArray = Array.isArray(contents) ? contents : [contents]
+          return [...contentsArray, createPartFromBase64(fileContent.base64, fileContent.mime)]
+        }
+      } catch (error) {
+        console.error(`[GeminiProvider] Failed to read image file ${file.origin_name}:`, error)
+        // 返回原始内容，不添加图片，但不中断对话
       }
     }
     return contents

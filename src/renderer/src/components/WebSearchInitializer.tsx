@@ -18,6 +18,8 @@ const WebSearchInitializer = () => {
     const hasDeepSearch = providers.some((provider) => provider.id === 'deep-search')
     // 检查是否已经存在Jina提供商
     const hasJina = providers.some((provider) => provider.id === 'jina')
+    // 检查是否已经存在Bocha提供商
+    const hasBocha = providers.some((provider) => provider.id === 'bocha')
 
     // 如果不存在，添加DeepSearch提供商
     if (!hasDeepSearch) {
@@ -41,6 +43,18 @@ const WebSearchInitializer = () => {
         contentLimit: 10000
       }
       dispatch(addWebSearchProvider(jinaProvider))
+    }
+
+    // 如果不存在，添加Bocha提供商
+    if (!hasBocha) {
+      const bochaProvider: WebSearchProvider = {
+        id: 'bocha',
+        name: 'Bocha',
+        apiKey: '',
+        apiHost: 'https://open.bochaai.com',
+        description: 'Bocha AI搜索服务，支持多语言搜索'
+      }
+      dispatch(addWebSearchProvider(bochaProvider))
     }
   }, [dispatch, providers])
 

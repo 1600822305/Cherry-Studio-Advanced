@@ -15,7 +15,7 @@ import { Alert, Button, Dropdown, Empty, message, Tag, Tooltip, Upload } from 'a
 import dayjs from 'dayjs'
 import { ChevronsDown, ChevronsUp, Plus, Search, Settings2 } from 'lucide-react'
 import VirtualList from 'rc-virtual-list'
-import { FC, useState } from 'react'
+import { FC, useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 
@@ -37,6 +37,7 @@ const fileTypes = [...bookExts, ...thirdPartyApplicationExts, ...documentExts, .
 const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
   const { t } = useTranslation()
   const [expandAll, setExpandAll] = useState(false)
+  const [messageInfo, setMessageInfo] = useState<{ type: 'info' | 'error' | 'success'; content: string } | null>(null)
 
   const {
     base,
@@ -60,6 +61,19 @@ const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
 
   const providerName = getProviderName(base?.model.provider || '')
   const disabled = !base?.version || !providerName
+
+  useEffect(() => {
+    if (messageInfo) {
+      if (messageInfo.type === 'info') {
+        message.info(messageInfo.content)
+      } else if (messageInfo.type === 'error') {
+        message.error(messageInfo.content)
+      } else if (messageInfo.type === 'success') {
+        message.success(messageInfo.content)
+      }
+      setMessageInfo(null)
+    }
+  }, [messageInfo])
 
   if (!base) {
     return null
@@ -142,7 +156,7 @@ const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
 
         // 如果没有有效文件，显示提示并返回
         if (processedFiles.length === 0) {
-          message.info(t('knowledge.no_valid_files'))
+          setMessageInfo({ type: 'info', content: t('knowledge.no_valid_files') })
           return
         }
 
@@ -150,7 +164,7 @@ const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
         addFiles(uploadedFiles)
       } catch (error) {
         console.error('[KnowledgeContent] Error processing files:', error)
-        message.error(t('knowledge.file_processing_error') || 'Error processing files')
+        setMessageInfo({ type: 'error', content: t('knowledge.file_processing_error') || 'Error processing files' })
       }
     }
   }
@@ -166,7 +180,7 @@ const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
       inputPlaceholder: t('knowledge.url_placeholder'),
       inputProps: {
         rows: 10,
-        onPressEnter: () => {}
+        onPressEnter: () => { }
       }
     })
 
@@ -180,7 +194,7 @@ const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
           if (!urlItems.find((item) => item.content === url.trim())) {
             addUrl(url.trim())
           } else {
-            message.success(t('knowledge.url_added'))
+            setMessageInfo({ type: 'success', content: t('knowledge.url_added') })
           }
         } catch (e) {
           // Skip invalid URLs silently
@@ -209,7 +223,7 @@ const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
       try {
         new URL(url)
         if (sitemapItems.find((item) => item.content === url)) {
-          message.success(t('knowledge.sitemap_added'))
+          setMessageInfo({ type: 'success', content: t('knowledge.sitemap_added') })
           return
         }
         addSitemap(url)
@@ -270,6 +284,11 @@ const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
         updated_at: Date.now()
       })
     }
+  }
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setMessageInfo({ type: 'success', content: t('message.copied') })
   }
 
   return (
@@ -496,10 +515,7 @@ const KnowledgeContent: FC<KnowledgeContentProps> = ({ selectedBase }) => {
                             key: 'copy',
                             icon: <CopyOutlined />,
                             label: t('common.copy'),
-                            onClick: () => {
-                              navigator.clipboard.writeText(item.content as string)
-                              message.success(t('message.copied'))
-                            }
+                            onClick: () => handleCopy(item.content as string)
                           }
                         ]
                       }}

@@ -55,7 +55,7 @@ const persistedReducer = persistReducer(
   {
     key: 'cherry-studio',
     storage,
-    version: 96,
+    version: 98,
     blacklist: ['runtime', 'messages', 'memory'],
     migrate
   },
@@ -86,3 +86,4 @@ export const useAppStore = useStore.withTypes<typeof store>()
 window.store = store
 
 export default store
+

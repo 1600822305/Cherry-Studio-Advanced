@@ -76,6 +76,10 @@ export type Message = {
   enabledMCPs?: MCPServer[]
   // 是否隐藏消息（用于系统消息）
   isHidden?: boolean
+  // 是否为深度思考消息
+  thinking?: boolean
+  // 是否为最终思考结果
+  isFinalThinking?: boolean
   // 引用消息
   referencedMessages?: {
     id: string
@@ -109,6 +113,8 @@ export type Message = {
       toolId: string
       response: MCPCallToolResponse
     }[]
+    // 语音通话消息标记
+    isVoiceCallMessage?: boolean
   }
   // 多模型消息样式
   multiModelMessageStyle?: 'horizontal' | 'vertical' | 'fold' | 'grid'
@@ -158,7 +164,7 @@ export type Provider = {
   notes?: string
 }
 
-export type ProviderType = 'openai' | 'anthropic' | 'gemini' | 'qwenlm' | 'azure-openai' | 'deepclaude'
+export type ProviderType = 'openai' | 'anthropic' | 'gemini' | 'qwenlm' | 'azure-openai' | 'deepclaude' | 'openai-compatible'
 
 export type ModelType = 'text' | 'vision' | 'embedding' | 'reasoning' | 'function_calling' | 'web_search'
 
@@ -644,3 +650,4 @@ export type TTSProvider = {
 }
 
 export type MathEngine = 'KaTeX' | 'MathJax' | 'none'
+

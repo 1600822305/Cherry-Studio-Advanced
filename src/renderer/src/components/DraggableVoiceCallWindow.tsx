@@ -285,24 +285,59 @@ const DraggableVoiceCallWindow: React.FC<Props> = ({
     const startVoiceCall = async () => {
       try {
         window.message.loading({ content: t('voice_call.initializing'), key: 'voice-call-init' })
+
+        // 预先初始化语音识别服务
         try {
           await VoiceCallService.initialize()
         } catch (initError) {
           console.warn('语音识别服务初始化警告:', initError)
+          // 显示警告但继续尝试
+          window.message.warning({
+            content: t('settings.asr.warning.initialization') || '语音识别初始化警告',
+            key: 'voice-call-warning'
+          })
         }
-        await VoiceCallService.startCall({
-          onTranscript: setTranscript,
+
+        // 启动语音通话前清除一下状态
+        setTranscript('')
+        setIsListening(false)
+        setIsSpeaking(false)
+        setIsRecording(false)
+        setIsProcessing(false)
+
+        // 定义回调函数
+        const callbacks = {
+          onTranscript: (text: string) => {
+            setTranscript(text);
+          },
           onResponse: () => {
             /* 响应在聊天界面处理 */
           },
-          onListeningStateChange: setIsListening,
-          onSpeakingStateChange: setIsSpeaking
-        })
+          onListeningStateChange: (listening: boolean) => {
+            setIsListening(listening);
+            if (!listening && isRecording) {
+              setIsRecording(false);
+            }
+          },
+          onSpeakingStateChange: (speaking: boolean) => {
+            setIsSpeaking(speaking);
+            if (speaking && isRecording) {
+              setIsRecording(false);
+            }
+          }
+        };
+
+        // 启动语音通话
+        await VoiceCallService.startCall(callbacks);
+
         window.message.success({ content: t('voice_call.ready'), key: 'voice-call-init' })
         isInitializedRef.current = true
       } catch (error) {
-        console.error('Voice call error:', error)
-        window.message.error({ content: t('voice_call.error'), key: 'voice-call-init' })
+        console.error('语音通话错误:', error)
+        window.message.error({
+          content: t('voice_call.error') + (error instanceof Error ? `: ${error.message}` : ''),
+          key: 'voice-call-init'
+        })
         onClose()
       }
     }

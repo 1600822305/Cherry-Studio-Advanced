@@ -6,7 +6,7 @@ import WebSearchService from '@renderer/services/WebSearchService'
 import { WebSearchProvider } from '@renderer/types'
 import { hasObjectKey } from '@renderer/utils'
 import { maskApiKey } from '@renderer/utils/api'
-import { Avatar, Button, Divider, Flex, Input, Typography } from 'antd'
+import { Avatar, Button, Divider as SettingDivider, Flex, Input, Typography } from 'antd'
 import Link from 'antd/es/typography/Link'
 import { Info } from 'lucide-react'
 import { FC, useEffect, useState } from 'react'
@@ -127,7 +127,7 @@ const WebSearchProviderSetting: FC<Props> = ({ provider: _provider }) => {
           )}
         </Flex>
       </SettingTitle>
-      <Divider style={{ width: '100%', margin: '10px 0' }} />
+      <SettingDivider style={{ width: '100%', margin: '10px 0' }} />
       {hasObjectKey(provider, 'apiKey') && (
         <>
           <SettingSubtitle style={{ marginTop: 5, marginBottom: 10 }}>{t('settings.provider.api_key')}</SettingSubtitle>
@@ -202,6 +202,14 @@ const WebSearchProviderSetting: FC<Props> = ({ provider: _provider }) => {
               {apiChecking ? <LoadingOutlined spin /> : apiValid ? <CheckOutlined /> : t('settings.websearch.check')}
             </Button>
           </Flex>
+        </>
+      )}
+      {hasObjectKey(provider, 'basicAuthUsername') && (
+        <>
+          <SettingDivider style={{ marginTop: 12, marginBottom: 12 }} />
+          <SettingSubtitle style={{ marginTop: 5, marginBottom: 10 }}>
+            {t('settings.provider.basic_auth')}
+          </SettingSubtitle>
         </>
       )}
     </>

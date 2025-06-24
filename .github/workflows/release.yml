@@ -60,7 +60,12 @@ jobs:
             ${{ runner.os }}-yarn-
 
       - name: Install Dependencies
-        run: yarn install
+        run: |
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            yarn install --ignore-optional
+          else
+            yarn install
+          fi
 
       - name: Build Linux
         if: matrix.os == 'ubuntu-latest'

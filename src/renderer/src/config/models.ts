@@ -230,6 +230,11 @@ export const FUNCTION_CALLING_REGEX = new RegExp(
   `\\b(?!(?:${FUNCTION_CALLING_EXCLUDED_MODELS.join('|')})\\b)(?:${FUNCTION_CALLING_MODELS.join('|')})\\b`,
   'i'
 )
+
+export const CLAUDE_SUPPORTED_WEBSEARCH_REGEX = new RegExp(
+  `\\b(?:claude-3(-|\\.)(?:7|5)-sonnet(?:-[\\w-]+)|claude-3(-|\\.)5-haiku(?:-[\\w-]+))\\b`,
+  'i'
+)
 export function isFunctionCallingModel(model: Model): boolean {
   if (model.type?.includes('function_calling')) {
     return true
@@ -2200,6 +2205,62 @@ export const SYSTEM_MODELS: Record<string, Model[]> = {
       name: 'Qwen2.5 72B Instruct',
       group: 'Qwen'
     }
+  ],
+  paratera: [
+    {
+      id: 'GLM-Z1-Flash-P002',
+      provider: 'paratera',
+      name: 'GLM-Z1-Flash-P002',
+      group: 'GLM'
+    },
+    {
+      id: 'GLM-Z1-AirX-P002',
+      provider: 'paratera',
+      name: 'GLM-Z1-AirX-P002',
+      group: 'GLM'
+    },
+    {
+      id: 'DeepSeek-V3-250324-P001',
+      provider: 'paratera',
+      name: 'DeepSeek-V3-250324-P001',
+      group: 'DeepSeek'
+    },
+    {
+      id: 'DeepSeek-R1',
+      provider: 'paratera',
+      name: 'DeepSeek-R1',
+      group: 'DeepSeek'
+    },
+    {
+      id: 'QwQ-N011-32B',
+      provider: 'paratera',
+      name: 'QwQ-N011-32B',
+      group: 'Qwen'
+    },
+    {
+      id: 'GLM-Embedding-2-P002',
+      provider: 'paratera',
+      name: 'GLM-Embedding-2-P002',
+      group: 'GLM'
+    },
+    {
+      id: 'GLM-Embedding-3-P002',
+      provider: 'paratera',
+      name: 'GLM-Embedding-3-P002',
+      group: 'GLM'
+    },
+    {
+      id: 'Doubao-Embedding-Text-P001',
+      provider: 'paratera',
+      name: 'Doubao-Embedding-Text-P001',
+      group: 'Doubao'
+    },
+    {
+      id: 'Doubao-Embedding-Large-Text-P001',
+      provider: 'paratera',
+      name: 'Doubao-Embedding-Large-Text-P001',
+      group: 'Doubao'
+    }
   ]
 }
 
@@ -2473,6 +2534,10 @@ export function isWebSearchModel(model: Model): boolean {
 
   if (provider.id === 'openrouter') {
     return true
+  }
+
+  if (provider.id === 'anthropic') {
+    return CLAUDE_SUPPORTED_WEBSEARCH_REGEX.test(model.id)
   }
 
   return false

@@ -1,6 +1,7 @@
 import { WebSearchProvider } from '@renderer/types'
 
 import BaseWebSearchProvider from './BaseWebSearchProvider'
+import BochaProvider from './BochaProvider'
 import DeepResearchProvider from './DeepResearchProvider'
 import DeepSearchProvider from './DeepSearchProvider'
 import DefaultProvider from './DefaultProvider'
@@ -17,6 +18,8 @@ export default class WebSearchProviderFactory {
     switch (provider.id) {
       case 'tavily':
         return new TavilyProvider(provider)
+      case 'bocha':
+        return new BochaProvider(provider)
       case 'searxng':
         return new SearxngProvider(provider)
       case 'exa':

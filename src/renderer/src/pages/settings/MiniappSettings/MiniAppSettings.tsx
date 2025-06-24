@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 
 import { SettingContainer, SettingDescription, SettingDivider, SettingGroup, SettingRowTitle, SettingTitle } from '..'
+import CustomMiniAppManager from './CustomMiniAppManager'
 import MiniAppIconsManager from './MiniAppIconsManager'
 
 // 默认小程序缓存数量
@@ -29,11 +30,15 @@ const MiniAppSettings: FC = () => {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleResetMinApps = useCallback(() => {
-    setVisibleMiniApps(DEFAULT_MIN_APPS)
+    // 保留自定义小程序，只重置系统默认小程序
+    const customApps = minapps.filter(app => app.id.startsWith('custom-'))
+    const newVisible = [...DEFAULT_MIN_APPS, ...customApps]
+
+    setVisibleMiniApps(newVisible)
     setDisabledMiniApps([])
-    updateMinapps(DEFAULT_MIN_APPS)
+    updateMinapps(newVisible)
     updateDisabledMinapps([])
-  }, [updateDisabledMinapps, updateMinapps])
+  }, [updateDisabledMinapps, updateMinapps, minapps])
 
   // 恢复默认缓存数量
   const handleResetCacheLimit = useCallback(() => {
@@ -73,6 +78,11 @@ const MiniAppSettings: FC = () => {
       <SettingGroup theme={theme}>
         <SettingTitle>{t('settings.miniapps.title')}</SettingTitle>
         <SettingDivider />
+
+        {/* 自定义小程序管理 */}
+        <CustomMiniAppManager />
+        <SettingDivider />
+
         <SettingTitle
           style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>{t('settings.miniapps.display_title')}</span>

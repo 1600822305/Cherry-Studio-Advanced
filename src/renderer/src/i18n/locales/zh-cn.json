@@ -41,7 +41,10 @@
       "add.prompt": "提示词",
       "add.prompt.placeholder": "输入提示词",
       "add.title": "创建智能体",
-      "delete.popup.content": "确定要删除此智能体吗？",
+      "export": {
+    "agent": "导出智能体"
+  },
+  "delete.popup.content": "确定要删除此智能体吗？",
       "edit.message.add.title": "添加",
       "edit.message.assistant.placeholder": "输入助手消息",
       "edit.message.assistant.title": "助手",
@@ -154,6 +157,10 @@
       "default.description": "你好，我是默认助手。你可以立刻开始跟我聊天。",
       "default.name": "默认助手",
       "default.topic.name": "默认话题",
+      "topic": {
+        "total_tokens": "总计 Tokens",
+        "total_tokens.tip": "该话题历史对话累计使用的token总数"
+      },
       "tts": {
         "play": "播放语音",
         "stop": "停止播放",
@@ -753,11 +760,17 @@
         "openExternal": "在浏览器中打开",
         "rightclick_copyurl": "右键复制URL"
       },
-      "sidebar.add.title": "添加到侧边栏",
-      "sidebar.remove.title": "从侧边栏移除",
-      "sidebar.close.title": "关闭",
-      "sidebar.closeall.title": "全部关闭",
-      "sidebar.hide.title": "隐藏小程序",
+      "sidebar": {
+        "add": {
+          "title": "添加到侧边栏"
+        },
+        "remove": {
+          "title": "从侧边栏移除"
+        },
+        "hide": {
+          "title": "隐藏小程序"
+        }
+      },
       "title": "小程序"
     },
     "miniwindow": {
@@ -1233,19 +1246,39 @@
       "display.sidebar.visible": "显示的图标",
       "display.title": "显示设置",
       "display.topic.title": "话题设置",
+      "display.inputbar.title": "输入框按钮设置",
+      "display.inputbar.description": "选择要在输入框中显示的功能按钮",
       "miniapps": {
         "title": "小程序设置",
-        "disabled": "隐藏的小程序",
-        "empty": "把要隐藏的小程序从左侧拖拽到这里",
-        "visible": "显示的小程序",
-        "cache_settings": "缓存设置",
-        "cache_title": "小程序缓存数量",
-        "cache_description": "设置同时保持活跃状态的小程序最大数量",
+        "display_title": "小程序显示",
+        "cache_title": "缓存数量",
+        "cache_description": "同时保持打开的最大小程序数量",
+        "cache_change_notice": "设置已保存，将在下次启动时生效",
         "reset_tooltip": "重置为默认值",
-        "display_title": "小程序显示设置",
-        "sidebar_title": "侧边栏活跃小程序显示设置",
-        "sidebar_description": "设置侧边栏是否显示活跃的小程序",
-        "cache_change_notice": "更改将在打开的小程序增减至设定值后生效"
+        "sidebar_title": "侧边栏显示",
+        "sidebar_description": "在侧边栏显示已打开的小程序",
+        "visible": "显示",
+        "disabled": "隐藏",
+        "empty": "无隐藏的小程序",
+        "custom": {
+          "title": "自定义小程序",
+          "add_title": "添加自定义小程序",
+          "edit_title": "编辑自定义小程序",
+          "add_button": "添加小程序",
+          "name": "名称",
+          "name_required": "请输入小程序名称",
+          "name_placeholder": "输入小程序名称",
+          "url": "网址",
+          "url_required": "请输入小程序网址",
+          "url_invalid": "请输入有效的网址",
+          "url_placeholder": "输入小程序网址",
+          "icon": "图标",
+          "upload_icon": "上传图标",
+          "icon_hint": "建议上传正方形图标，支持PNG、JPG、SVG等格式",
+          "remove_icon": "移除图标",
+          "empty": "暂无自定义小程序",
+          "delete_confirm": "确定要删除此自定义小程序吗？"
+        }
       },
       "font_size.title": "消息字体大小",
       "general": "常规设置",
@@ -2147,7 +2180,13 @@
           "no_api_key": "未设置API密钥",
           "browser_not_support": "浏览器不支持语音识别",
           "start_failed": "开始录音失败",
-          "transcribe_failed": "语音识别失败"
+          "transcribe_failed": "语音识别失败",
+          "recognition_error": "语音识别错误: {{error}}"
+        },
+        "warning": {
+          "connection_retry_later": "无法连接到语音识别服务器，将在需要时重试",
+          "connection_failed": "连接语音识别服务器失败，将在需要时重试",
+          "initialization": "语音识别初始化警告，可能会影响录音质量"
         }
       },
       "voice_call": {
@@ -2170,7 +2209,18 @@
         },
         "asr_tts_info": "语音通话使用上面的语音识别(ASR)和语音合成(TTS)设置",
         "test": "测试通话",
-        "test_info": "请使用输入框右侧的语音通话按钮进行测试"
+        "test_info": "请使用输入框右侧的语音通话按钮进行测试",
+        "microphone_denied": "麦克风权限被拒绝，请允许浏览器访问麦克风",
+        "start_recording_error": "启动录音失败，请检查麦克风权限",
+        "stop_recording_error": "停止录音时出错",
+        "cancel_recording_error": "取消录音时出错",
+        "processing_error": "处理语音输入时出错",
+        "no_model_error": "未选择语音通话模型",
+        "thinking": "正在思考...",
+        "thinking_complete": "思考完成",
+        "processing_speech": "正在处理语音...",
+        "empty_text": "语音识别结果为空",
+        "api_request_error": "API请求错误"
       }
     },
     "translate": {
@@ -2201,6 +2251,44 @@
       "scroll_sync.enable": "开启滚动同步",
       "title": "翻译",
       "tooltip.newline": "换行"
+    },
+    "polish": {
+      "title": "润色文字",
+      "confirm": {
+        "title": "润色确认",
+        "content": "润色后将覆盖原文，是否继续？"
+      },
+      "processing": "润色中...",
+      "error": {
+        "failed": "润色失败",
+        "not_configured": "润色模型未配置"
+      },
+      "success": "润色成功",
+      "menu": {
+        "description": "优化当前输入框内容的表达"
+      }
+    },
+    "deep_thinking": {
+      "title": "深度思考",
+      "confirm": {
+        "title": "深度思考确认",
+        "content": "启用深度思考模式将使AI进行多轮思考，是否继续？"
+      },
+      "processing": "思考中...",
+      "error": {
+        "failed": "深度思考失败",
+        "not_configured": "深度思考模型未配置"
+      },
+      "success": "深度思考成功",
+      "thinking_block": "思考过程",
+      "final_answer": "最终结论",
+      "continue_thinking": "继续思考",
+      "complete_thinking": "完成思考",
+      "thinking_in_progress": "正在思考中...",
+      "thinking_completed": "思考完成",
+      "menu": {
+        "description": "启用多轮思考模式，提升AI推理能力"
+      }
     },
     "tray": {
       "quit": "退出",

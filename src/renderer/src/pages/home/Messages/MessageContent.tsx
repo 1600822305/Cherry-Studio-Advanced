@@ -20,6 +20,7 @@ import MessageAttachments from './MessageAttachments'
 import MessageError from './MessageError'
 import MessageImage from './MessageImage'
 import MessageThought from './MessageThought'
+import DeepThinkingMessage from './DeepThinkingMessage'
 
 interface Props {
   message: Message
@@ -416,217 +417,111 @@ const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
     const websearchResults = message?.metadata?.webSearch?.results?.map((result) => result.url) || []
     const knowledgeResults = message?.metadata?.knowledge?.map((result) => result.sourceUrl) || []
     const citations = message?.metadata?.citations || [...websearchResults, ...knowledgeResults]
-    const webSearchLength = websearchResults.length // 计算 web search 结果的数量
 
-    // 优化正则表达式匹配
-    if (message.metadata?.webSearch || message.metadata?.knowledge) {
-      const usedOriginalIndexes: number[] = []
-      // 扩展正则表达式匹配，同时匹配[[1]]、[1]和纯数字[1][2]格式
-      const citationRegex = /\[\[(\d+)\]\]|\[(\d+)\]|\[(\d+)\]\[(\d+)\]/g
+    // 处理引用标签
+    if (citations && citations.length > 0) {
+      // 检查是否有网络搜索或知识库引用相关的元数据
+      const hasWebSearch = message?.metadata?.webSearch || message?.metadata?.webSearchInfo || message?.metadata?.annotations;
+      const hasKnowledge = message?.metadata?.knowledge;
+      const hasGroundingMetadata = message?.metadata?.groundingMetadata;
 
-      // 第一步: 识别有效的原始索引
-      for (const match of content.matchAll(citationRegex)) {
-        // 处理[1][2]格式或其他格式
-        const numStr = match[1] || match[2] || match[3]
-        if (!numStr) continue
+      // 只在实际使用引用功能时启用引用处理
+      if (hasWebSearch || hasKnowledge || hasGroundingMetadata) {
+        // 首先检测内容中是否有数学公式，避免处理数学公式内部的内容
+        const katexBlockRegex = /\$\$([\s\S]*?)\$\$|\$((?!\$)[\s\S]*?)\$/g;
+        const mathBlocks: { start: number, end: number }[] = [];
+        let match;
 
-        const index = parseInt(numStr) - 1
-        if (index >= webSearchLength && index < citations.length && citations[index]) {
-          if (!usedOriginalIndexes.includes(index)) {
-            usedOriginalIndexes.push(index)
-          }
+        // 收集所有数学公式的位置
+        while ((match = katexBlockRegex.exec(content)) !== null) {
+          mathBlocks.push({
+            start: match.index,
+            end: match.index + match[0].length
+          });
         }
-      }
-      // 对使用的原始索引进行排序，以便后续查找新索引
-      usedOriginalIndexes.sort((a, b) => a - b)
 
-      // 创建原始索引到新索引的映射
-      const originalIndexToNewIndexMap = new Map<number, number>()
-      usedOriginalIndexes.forEach((originalIndex, newIndex) => {
-        originalIndexToNewIndexMap.set(originalIndex, newIndex)
-      })
+        // 优化引用处理，避开数学公式区域
+        // 扩展正则表达式匹配，同时匹配[[1]]、[1]和纯数字[1][2]格式
+        const citationRegex = /\[\[(\d+)\]\]|\[(\d+)\]|\[(\d+)\]\[(\d+)\]/g;
 
-      // 第二步: 替换并使用新的索引编号
-      content = content.replace(
-        citationRegex,
-        (
-          match,
-          num1,
-          num2,
-          num3
-          // 移除未使用的参数 num4
-        ) => {
+        // 替换引用标记，避开数学公式区域
+        content = content.replace(citationRegex, (match, num1, num2, num3, num4, offset) => {
+          // 检查当前匹配是否在数学公式内部
+          for (const block of mathBlocks) {
+            if (offset >= block.start && offset < block.end) {
+              return match; // 在数学公式内，保持原样
+            }
+          }
+
           // 处理[1][2]格式或其他格式
-          const numStr = num1 || num2 || num3
-          if (!numStr) return match
+          const numStr = num1 || num2 || num3 || num4;
+          if (!numStr) return match;
 
-          const originalIndex = parseInt(numStr) - 1
-
-          // 检查索引是否有效
-          if (originalIndex < 0 || originalIndex >= citations.length || !citations[originalIndex]) {
-            return match // 无效索引，返回原文
-          }
-
-          const link = citations[originalIndex]
-          const citation = { ...(citationsData.get(link) || { url: link }) }
-          if (citation.content) {
-            citation.content = citation.content.substring(0, 200)
-          }
-
-          const citationDataHtml = encodeHTML(JSON.stringify(citation))
-
-          // 检查是否是 *被使用的知识库* 引用
-          if (originalIndexToNewIndexMap.has(originalIndex)) {
-            const newIndex = originalIndexToNewIndexMap.get(originalIndex)!
-            const newCitationNum = webSearchLength + newIndex + 1 // 重新编号的知识库引用 (从websearch index+1开始)
-
-            const isWebLink = link.startsWith('http://') || link.startsWith('https://')
-            if (!isWebLink) {
-              // 知识库引用通常不是网页链接，只显示上标数字
-              return `<sup>${newCitationNum}</sup>`
-            } else {
-              // 如果知识库源是网页链接 (特殊情况)
-              console.log('Web knowledge citation:', { newCitationNum, link, citation })
-              return `<sup class="citation-marker" data-citation='${citationDataHtml}'>${newCitationNum}</sup>`
-            }
-          }
-          // 检查是否是 *Web搜索* 引用
-          else if (originalIndex < webSearchLength) {
-            const citationNum = originalIndex + 1 // Web搜索引用保持原编号 (从1开始)
-            console.log('Web search citation:', { citationNum, link, citation })
-            return `<sup class="citation-marker" data-citation='${citationDataHtml}'>${citationNum}</sup>`
-          }
-          // 其他情况 (如未使用的知识库引用)，返回原文
-          else {
-            return match
-          }
-        }
-      )
-
-      // 过滤掉未使用的知识索引
-      // 注意：由于我们不能在 useMemo 中修改外部变量，
-      // 这里我们只是计算哪些知识库引用是被使用的，但不修改原始数据
-      // 实际上，这个过滤操作可能需要在组件外部进行，或者使用 useRef 来存储过滤后的结果
-      //
-      // 以下代码被注释掉，因为它创建了一个未使用的变量
-      // const filteredKnowledge = message.metadata.knowledge?.filter((_, knowledgeIndex) =>
-      //   usedOriginalIndexes.includes(knowledgeIndex + webSearchLength)
-      // )
-    } else {
-      // 处理非 webSearch/knowledge 的情况
-      // 首先处理标准Markdown引用格式
-      const standardCitationRegex = /\[<sup>(\d+)<\/sup>\]\(([^)]+)\)/g
-      content = content.replace(standardCitationRegex, (_, num, url) => {
-        const citation = citationsData.get(url) || { url }
-        console.log('Standard citation format detected:', { num, url, citation })
-        // 使用直接的HTML结构，确保data-citation属性正确设置
-        return `<sup class="citation-marker" data-citation='${encodeHTML(JSON.stringify(citation))}'>${num}</sup>`
-      })
-
-      // 然后处理纯数字引用格式 [1][2]
-      // 使用更宽松的正则表达式，匹配各种形式的引用标记
-      // 增强正则表达式，匹配更多引用格式，包括带有class="citation-marker"的sup标签
-      // 添加对更复杂的HTML格式的支持，如带有data-citation属性的sup标签
-      // 使用非贪婪匹配和更宽松的模式，确保能够匹配各种格式的引用标记
-      const simpleCitationRegex =
-        /\[(\d+)\](?:\[(\d+)\])?|\[\[(\d+)\]\]|<sup[^>]*class=["']citation-marker["'][^>]*>(\d+)<\/sup>|<sup[^>]*data-citation=['"](.*?)['"][^>]*>(\d+)<\/sup>/g
-      content = content.replace(
-        simpleCitationRegex,
-        (
-          match,
-          num1,
-          // 移除未使用的参数 num2
-          _unused,
-          num3,
-          num4,
-          _citationData,
-          num6
-        ) => {
-          const numStr = num1 || num3 || num4 || num6 // num1是[1]格式，num3是[[1]]格式，num4和num6是<sup>格式
-          if (!numStr) return match
-
-          // 如果是带有data-citation属性的sup标签，尝试直接使用该属性
-          if (_citationData) {
-            try {
-              // 尝试解析data-citation属性，先解码HTML实体
-              const decodedCitationData = decodeHTML(_citationData)
-              // 尝试解析JSON
-              let citationData: { url?: string; title?: string; content?: string }
-              try {
-                citationData = JSON.parse(decodedCitationData)
-              } catch (jsonError) {
-                // 如果JSON解析失败，可能是因为引号问题，尝试替换引号
-                const fixedData = decodedCitationData
-                  .replace(/&quot;/g, '"')
-                  .replace(/&apos;/g, "'")
-                  .replace(/\\"/g, '"')
-                citationData = JSON.parse(fixedData)
-              }
-
-              // 确保URL字段存在
-              if (!citationData.url && citationData.title) {
-                citationData.url = `#citation-${numStr}`
-              }
-
-              // 编码为HTML安全的JSON字符串
-              const citationDataHtml = encodeHTML(JSON.stringify(citationData))
-              console.log('Found existing citation data:', citationData)
-
-              // 直接返回格式化的引用标记，使用单引号包裹data-citation属性
-              return `<sup class="citation-marker" data-citation='${citationDataHtml}'>${numStr}</sup>`
-            } catch (e) {
-              console.error('Error parsing citation data:', e, _citationData)
-              // 如果解析失败，创建一个通用的引用数据
-              const genericCitation = {
-                url: `#citation-${numStr}`,
-                title: `引用 ${numStr}`,
-                content: `这是对原始回复中引用 ${numStr} 的引用`
-              }
-              const citationDataHtml = encodeHTML(JSON.stringify(genericCitation))
-
-              // 返回通用引用标记
-              return `<sup class="citation-marker" data-citation='${citationDataHtml}'>${numStr}</sup>`
-            }
-          }
-
-          const index = parseInt(numStr) - 1
+          const index = parseInt(numStr) - 1;
 
           // 检查索引是否有效
           if (index < 0 || index >= citations.length || !citations[index]) {
-            // 对于二次询问的回复，我们可能没有元数据，但仍然需要处理引用标记
-            // 创建一个通用的引用数据，使其可点击
-            const genericCitation = {
-              url: `#citation-${numStr}`,
-              title: `引用 ${numStr}`,
-              content: `这是对原始回复中引用 ${numStr} 的引用`
-            }
-            const citationDataHtml = encodeHTML(JSON.stringify(genericCitation))
-            console.log('Generic citation created:', genericCitation)
-
-            // 使用直接的HTML结构，确保data-citation属性正确设置
-            return `<sup class="citation-marker" data-citation='${citationDataHtml}'>${numStr}</sup>`
-
-            // 无效索引，返回原文
-            // return match
+            return match; // 无效索引，返回原文
           }
 
-          const link = citations[index]
-          const citation = { ...(citationsData.get(link) || { url: link }) }
-          // 确保URL存在
-          if (!citation.url) {
-            citation.url = link
-          }
-
+          const link = citations[index];
+          const citation = { ...(citationsData.get(link) || { url: link }) };
           if (citation.content) {
-            citation.content = citation.content.substring(0, 200)
+            citation.content = citation.content.substring(0, 200);
           }
 
-          const citationDataHtml = encodeHTML(JSON.stringify(citation))
-          console.log('Citation processed:', citation)
-          // 使用直接的HTML结构，确保data-citation属性正确设置
-          return `<sup class="citation-marker" data-citation='${citationDataHtml}'>${numStr}</sup>`
+          const citationDataHtml = encodeHTML(JSON.stringify(citation));
+
+          // 返回可点击的引用标记
+          return `<sup class="citation-marker" data-citation='${citationDataHtml}'>${numStr}</sup>`;
+        });
+      } else {
+        // 没有启用引用功能，将引用格式转换为纯文本
+        console.log('Citations found but reference feature is not enabled');
+        const citationRegex = /\[\[(\d+)\]\]|\[(\d+)\]|\[(\d+)\]\[(\d+)\]/g;
+        content = content.replace(citationRegex, (match, num1, num2, num3) => {
+          const numStr = num1 || num2 || num3;
+          if (!numStr) return match;
+          return `[${numStr}]`;
+        });
+      }
+    }
+
+    // 优化非 webSearch/knowledge 的情况下的引用处理
+    else {
+      // 处理非 webSearch/knowledge 的情况
+      // 首先处理标准Markdown引用格式
+      const standardCitationRegex = /\[<sup>(\d+)<\/sup>\]\(([^)]+)\)/g;
+      content = content.replace(standardCitationRegex, (_, num) => {
+        // 保留引用标记，但转换为纯文本
+        return `[${num}]`;
+      });
+
+      // 然后处理纯数字引用格式和HTML引用标记
+      const simpleCitationRegex =
+        /\[(\d+)\](?:\[(\d+)\])?|\[\[(\d+)\]\]|<sup[^>]*class=["']citation-marker["'][^>]*>(\d+)<\/sup>|<sup[^>]*data-citation=['"](.*?)['"][^>]*>(\d+)<\/sup>/g;
+      content = content.replace(
+        simpleCitationRegex,
+        (match, num1, _unused, num3, num4, _citationData, num6, offset) => {
+          const numStr = num1 || num3 || num4 || num6;
+          if (!numStr) return match;
+
+          // 检查是否在数学公式内部 - 先做一个简单检查
+          const beforeContext = content.substring(Math.max(0, offset - 20), offset);
+          const afterContext = content.substring(offset + match.length, offset + match.length + 20);
+
+          // 如果前后文有数学符号，可能是数学公式的一部分，保持原样
+          if (
+            (beforeContext.includes('$') || beforeContext.includes('\\')) &&
+            (afterContext.includes('$') || afterContext.includes('\\'))
+          ) {
+            return match;
+          }
+
+          // 否则转换为纯文本引用
+          return `[${numStr}]`;
         }
-      )
+      );
     }
 
     // 处理 MCP 工具调用标记
@@ -1026,10 +921,15 @@ const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
       )}
       {/* Only display thought info at the top */}
       <MessageThought message={message} />
-      {isSegmentedPlayback ? (
+      {/* Display deep thinking message if it's a thinking message */}
+      {message.thinking && <DeepThinkingMessage message={message} />}
+      {/* Display final thinking message if it's a final thinking message */}
+      {message.isFinalThinking && <DeepThinkingMessage message={message} />}
+      {/* 如果是思考消息或最终思考结果，不显示普通内容 */}
+      {!message.thinking && !message.isFinalThinking && isSegmentedPlayback ? (
         // Apply regex replacement here for TTS
         <TTSHighlightedText text={processedContent.replace(tagsToRemoveRegex, '')} />
-      ) : (
+      ) : (!message.thinking && !message.isFinalThinking) ? (
         // Render Markdown with tool blocks
         <Markdown
           message={{ ...message, content: processedContent }} // 传递包含占位符的内容
@@ -1046,7 +946,7 @@ const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
           onToolCancel={handleCancelEdit} // 传递 handleCancelEdit 函数
           onToolParamsChange={handleParamsChange} // 传递 onToolParamsChange 函数
         />
-      )}
+      ) : null}
       {message.metadata?.generateImage && <MessageImage message={message} />}
       {message.translatedContent && (
         <Fragment>
@@ -1091,8 +991,8 @@ const MessageContent: React.FC<Props> = ({ message: _message, model }) => {
             dangerouslySetInnerHTML={{
               __html: message.metadata.groundingMetadata?.searchEntryPoint?.renderedContent
                 ? message.metadata.groundingMetadata.searchEntryPoint.renderedContent
-                    .replace(/@media \(prefers-color-scheme: light\)/g, 'body[theme-mode="light"]')
-                    .replace(/@media \(prefers-color-scheme: dark\)/g, 'body[theme-mode="dark"]')
+                  .replace(/@media \(prefers-color-scheme: light\)/g, 'body[theme-mode="light"]')
+                  .replace(/@media \(prefers-color-scheme: dark\)/g, 'body[theme-mode="dark"]')
                 : ''
             }}
           />
@@ -1389,6 +1289,19 @@ try {
             border-radius: 10px;
             border: 1px solid var(--color-border);
             z-index: 2;
+          }
+
+          /* 深度思考容器样式 */
+          .deep-thinking-container {
+            margin-bottom: 15px;
+            border: 1px solid var(--color-primary-mute);
+            background-color: var(--color-background-soft);
+            border-radius: 8px;
+          }
+
+          /* 思考块标题样式 */
+          .deep-thinking-container .ant-collapse-header {
+            background-color: rgba(var(--color-primary-rgb), 0.1);
           }
         `
       document.head.appendChild(styleElement)

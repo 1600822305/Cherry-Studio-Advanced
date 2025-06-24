@@ -28,6 +28,24 @@ export type SidebarIcon =
   | 'browser'
   | 'calendar'
 
+export type InputBarButton =
+  | 'new_topic'
+  | 'workspace'
+  | 'attachment'
+  | 'web_search'
+  | 'knowledge_base'
+  | 'mcp_tools'
+  | 'agent_mode'
+  | 'mention_models'
+  | 'quick_phrases'
+  | 'clear'
+  | 'expand'
+  | 'new_context'
+  | 'translate'
+  | 'polish_text'
+  | 'asr'
+  | 'voice_call'
+
 export const DEFAULT_SIDEBAR_ICONS: SidebarIcon[] = [
   'assistants',
   'agents',
@@ -80,6 +98,7 @@ export interface SettingsState {
   agentModeMaxApiRequests: number // Agent模式下最大API请求次数
   showAgentTaskList: boolean // 是否显示Agent任务列表
   agentAutoExecutionCount: number // Agent自动执行次数
+  inputBarDisabledButtons: InputBarButton[] // 禁用的输入框按钮
   codeShowLineNumbers: boolean
   codeCollapsible: boolean
   codeWrappable: boolean
@@ -254,6 +273,7 @@ export const initialState: SettingsState = {
   agentModeMaxApiRequests: 20, // 默认最大API请求次数为20
   showAgentTaskList: true, // 默认显示Agent任务列表
   agentAutoExecutionCount: 5, // 默认Agent自动执行次数为5
+  inputBarDisabledButtons: [], // 默认不禁用任何输入框按钮
   codeShowLineNumbers: false,
   codeCollapsible: false,
   codeWrappable: false,
@@ -387,6 +407,9 @@ const settingsSlice = createSlice({
   name: 'settings',
   initialState,
   reducers: {
+    setInputBarDisabledButtons: (state, action: PayloadAction<InputBarButton[]>) => {
+      state.inputBarDisabledButtons = action.payload
+    },
     setEnableAgentMode: (state, action: PayloadAction<boolean>) => {
       state.enableAgentMode = action.payload
     },
@@ -891,6 +914,7 @@ const settingsSlice = createSlice({
 })
 
 export const {
+  setInputBarDisabledButtons,
   setEnableAgentMode,
   setAgentModeMaxApiRequests,
   setShowAgentTaskList,

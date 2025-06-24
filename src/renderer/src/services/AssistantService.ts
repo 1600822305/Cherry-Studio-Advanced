@@ -1,6 +1,7 @@
 import { DEFAULT_CONTEXTCOUNT, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE } from '@renderer/config/constant'
 import db from '@renderer/databases'
 import i18n from '@renderer/i18n'
+import { EVENT_NAMES, EventEmitter } from '@renderer/services/EventService'
 import store from '@renderer/store'
 import { addAssistant } from '@renderer/store/assistants'
 import { Agent, Assistant, AssistantSettings, Message, Model, Provider, Topic } from '@renderer/types'
@@ -159,33 +160,97 @@ export function getAssistantById(id: string) {
   return assistants.find((a) => a.id === id)
 }
 
-export async function addAssistantMessagesToTopic({ assistant, topic }: { assistant: Assistant; topic: Topic }) {
-  const messages: Message[] = []
-  const defaultModel = getDefaultModel()
+export async function addAssistantMessagesToTopic(
+  topicId: string,
+  newMessages: Message[]
+): Promise<Message[]>;
+export async function addAssistantMessagesToTopic({
+  assistant,
+  topic
+}: {
+  assistant: Assistant;
+  topic: Topic;
+}): Promise<Message[]>;
+export async function addAssistantMessagesToTopic(
+  topicIdOrParams: string | { assistant: Assistant; topic: Topic },
+  newMessages?: Message[]
+): Promise<Message[]> {
+  // 处理重载情况
+  if (typeof topicIdOrParams === 'string') {
+    // 直接添加消息到主题
+    const topicId = topicIdOrParams;
 
-  for (const msg of assistant?.messages || []) {
-    const message: Message = {
-      id: uuid(),
-      assistantId: assistant.id,
-      role: msg.role,
-      content: msg.content,
-      topicId: topic.id,
-      createdAt: new Date().toISOString(),
-      status: 'success',
-      model: assistant.defaultModel || defaultModel,
-      type: 'text',
-      isPreset: true
+    // 获取主题
+    const topic = await db.topics.get(topicId);
+    if (!topic) {
+      console.error(`[addAssistantMessagesToTopic] Topic not found: ${topicId}`);
+      return [];
     }
-    message.usage = await estimateMessageUsage(message)
-    messages.push(message)
-  }
-  if (await db.topics.get(topic.id)) {
-    await db.topics.update(topic.id, { messages })
-  } else {
-    await db.topics.add({ id: topic.id, messages })
-  }
 
-  return messages
+    // 获取现有消息
+    const existingMessages = topic.messages || [];
+
+    // 合并消息
+    const messages = [...existingMessages, ...(newMessages || [])];
+
+    // 更新主题
+    await db.topics.update(topicId, { messages });
+
+    // 触发事件通知UI更新
+    try {
+      // 使用Redux store直接更新
+      store.dispatch({
+        type: 'messages/loadTopicMessages',
+        payload: { topicId, messages }
+      })
+
+      // 同时使用window.api方式更新（兼容性考虑）
+      if (window.api?.store?.dispatch) {
+        window.api.store.dispatch(
+          window.api.store.updateTopicMessagesThunk(topicId, messages)
+        )
+      }
+
+      // 触发消息更新事件，确保UI刷新
+      EventEmitter.emit(EVENT_NAMES.RECEIVE_MESSAGE, messages[messages.length - 1])
+
+      console.log('[addAssistantMessagesToTopic] Successfully updated messages and triggered UI refresh')
+    } catch (error) {
+      console.error('[addAssistantMessagesToTopic] Failed to update UI:', error)
+    };
+
+    return messages;
+  } else {
+    // 原始功能：从助手添加预设消息到主题
+    const { assistant, topic } = topicIdOrParams;
+    const messages: Message[] = [];
+    const defaultModel = getDefaultModel();
+
+    for (const msg of assistant?.messages || []) {
+      const message: Message = {
+        id: uuid(),
+        assistantId: assistant.id,
+        role: msg.role,
+        content: msg.content,
+        topicId: topic.id,
+        createdAt: new Date().toISOString(),
+        status: 'success',
+        model: assistant.defaultModel || defaultModel,
+        type: 'text',
+        isPreset: true
+      };
+      message.usage = await estimateMessageUsage(message);
+      messages.push(message);
+    }
+
+    if (await db.topics.get(topic.id)) {
+      await db.topics.update(topic.id, { messages });
+    } else {
+      await db.topics.add({ id: topic.id, messages });
+    }
+
+    return messages;
+  }
 }
 
 export async function createAssistantFromAgent(agent: Agent) {

@@ -62,23 +62,32 @@ export default class AnthropicProvider extends BaseProvider {
     ]
 
     for (const file of message.files || []) {
-      if (file.type === FileTypes.IMAGE) {
-        const base64Data = await window.api.file.base64Image(file.id + file.ext)
-        parts.push({
-          type: 'image',
-          source: {
-            data: base64Data.base64,
-            media_type: base64Data.mime.replace('jpg', 'jpeg') as any,
-            type: 'base64'
-          }
-        })
-      }
+      try {
+        if (file.type === FileTypes.IMAGE) {
+          const base64Data = await window.api.file.base64Image(file.id + file.ext)
+          parts.push({
+            type: 'image',
+            source: {
+              data: base64Data.base64,
+              media_type: base64Data.mime.replace('jpg', 'jpeg') as any,
+              type: 'base64'
+            }
+          })
+        }
 
-      if ([FileTypes.TEXT, FileTypes.DOCUMENT].includes(file.type)) {
-        const fileContent = await (await window.api.file.read(file.id + file.ext)).trim()
+        if ([FileTypes.TEXT, FileTypes.DOCUMENT].includes(file.type)) {
+          const fileContent = await (await window.api.file.read(file.id + file.ext)).trim()
+          parts.push({
+            type: 'text',
+            text: file.origin_name + '\n' + fileContent
+          })
+        }
+      } catch (error) {
+        console.error(`[AnthropicProvider] Failed to process file ${file.origin_name}:`, error)
+        // 添加错误信息到消息中，但不中断整个对话
         parts.push({
           type: 'text',
-          text: file.origin_name + '\n' + fileContent
+          text: `[文件读取失败: ${file.origin_name} - ${error instanceof Error ? error.message : '未知错误'}]`
         })
       }
     }
@@ -134,8 +143,9 @@ export default class AnthropicProvider extends BaseProvider {
     }
 
     const isClaude37Sonnet = model.id.includes('claude-3-7-sonnet') || model.id.includes('claude-3.7-sonnet')
+    const isClaude35Sonnet = model.id.includes('claude-3-5-sonnet') || model.id.includes('claude-3.5-sonnet')
 
-    if (!isClaude37Sonnet) {
+    if (!isClaude37Sonnet && !isClaude35Sonnet) {
       return undefined
     }
 

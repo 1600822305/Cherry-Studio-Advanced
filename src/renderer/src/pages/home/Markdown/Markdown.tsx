@@ -24,7 +24,6 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 
 import SingleToolCallBlock from '../Messages/SingleToolCallBlock' // 导入 SingleToolCallBlock
-import CitationTooltip from './CitationTooltip'
 import EditableCodeBlock from './EditableCodeBlock'
 import ImagePreview from './ImagePreview'
 import Link from './Link'
@@ -100,7 +99,7 @@ const Markdown: FC<Props> = ({
   // which won't exist with native function calling.
   // const processToolUse = (content: string) => { ... }
 
-  // 预处理消息内容，解码HTML实体并处理复杂的引用标记
+  // 预处理消息内容，解码HTML实体并完全去除引用标记
   const processedMessageContent = useMemo(() => {
     // 先解码HTML实体
     let content = messageContent
@@ -110,22 +109,18 @@ const Markdown: FC<Props> = ({
       .replace(/&quot;/g, '"')
       .replace(/&apos;/g, "'")
 
-    // 处理复杂的引用标记格式
-    // 匹配形如 <sup class="citation-marker" data-citation='{"url":"..."}'>123</sup> 的模式
-    const citationRegex = /<sup\s+class="citation-marker"\s+data-citation='(.*?)'>(.*?)<\/sup>/g
-
-    // 替换为更简单的格式，确保data-citation属性被正确处理
-    content = content.replace(citationRegex, (match, dataCitation, number) => {
-      try {
-        // 尝试解析data-citation属性
-        const citation = JSON.parse(dataCitation.replace(/&quot;/g, '"').replace(/&apos;/g, "'"))
-        // 创建一个新的引用标记，使用更简单的格式
-        return `<sup data-citation="${encodeURIComponent(JSON.stringify(citation))}">${number}</sup>`
-      } catch (e) {
-        console.error('Error processing citation in Markdown preprocessing:', e)
-        return match // 如果解析失败，保留原始匹配
-      }
-    })
+    // 移除各种可能的引用标记形式
+    content = content
+      // 移除标准引用标记
+      .replace(/<sup\s+class="citation-marker"\s+data-citation='(.*?)'>(.*?)<\/sup>/g, '')
+      // 移除带引号的引用
+      .replace(/<sup\s+class="citation-marker"\s+data-citation="(.*?)">(.*?)<\/sup>/g, '')
+      // 移除自定义引用标记
+      .replace(/<citation-ref\s+data-citation="(.*?)">(.*?)<\/citation-ref>/g, '')
+      // 移除HTML实体编码的引用
+      .replace(/&lt;sup\s+class="citation-marker"\s+data-citation='(.*?)'&gt;(.*?)&lt;\/sup&gt;/g, '')
+      // 移除任何剩余的包含"data-citation"的标签
+      .replace(/<[^>]*data-citation[^>]*>.*?<\/[^>]*>/g, '');
 
     return content
   }, [messageContent])
@@ -144,85 +139,9 @@ const Markdown: FC<Props> = ({
       code: EditableCodeBlock,
       img: ImagePreview,
       pre: (props: any) => <pre style={{ overflow: 'visible' }} {...props} />,
-      // 直接处理sup标签，确保引用可点击
+
+      // 保留空的sup处理器，不做任何特殊处理
       sup: (props: any) => {
-        // 检查是否包含data-citation属性
-        if (props['data-citation']) {
-          try {
-            // 尝试解析data-citation属性，可能是字符串或已解析的对象
-            let citationData = props['data-citation']
-
-            // 如果是字符串，尝试解析为JSON
-            if (typeof citationData === 'string') {
-              try {
-                // 检查是否是URL编码的JSON
-                if (citationData.includes('%')) {
-                  citationData = decodeURIComponent(citationData)
-                }
-
-                // 先解码HTML实体
-                const decodedCitation = citationData
-                  .replace(/&amp;/g, '&')
-                  .replace(/&lt;/g, '<')
-                  .replace(/&gt;/g, '>')
-                  .replace(/&quot;/g, '"')
-                  .replace(/&apos;/g, "'")
-
-                citationData = parseJSON(decodedCitation)
-              } catch (e) {
-                console.error('Error decoding citation data:', e)
-                // 如果解析失败，尝试直接解析
-                citationData = parseJSON(citationData)
-              }
-            }
-
-            console.log('Rendering citation sup with data:', citationData)
-
-            // 移除data-citation属性，避免重复处理
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { 'data-citation': unused, ...restProps } = props
-
-            // 确保className包含citation-marker
-            const className = `citation-marker ${restProps.className || ''}`
-
-            return (
-              <CitationTooltip citation={citationData}>
-                <sup {...restProps} className={className} />
-              </CitationTooltip>
-            )
-          } catch (error) {
-            console.error('Error processing citation data:', error, props['data-citation'])
-            // 如果解析失败，创建一个通用的引用数据
-            const genericCitation = {
-              url: `#citation-${props.children}`,
-              title: `引用 ${props.children}`,
-              content: `这是对原始回复中引用 ${props.children} 的引用`
-            }
-
-            return (
-              <CitationTooltip citation={genericCitation}>
-                <sup {...props} className="citation-marker" />
-              </CitationTooltip>
-            )
-          }
-        }
-
-        // 检查是否有class="citation-marker"但没有data-citation
-        if (props.className && props.className.includes('citation-marker')) {
-          // 创建一个通用的引用数据
-          const genericCitation = {
-            url: `#citation-${props.children}`,
-            title: `引用 ${props.children}`,
-            content: `这是对原始回复中引用 ${props.children} 的引用`
-          }
-
-          return (
-            <CitationTooltip citation={genericCitation}>
-              <sup {...props} />
-            </CitationTooltip>
-          )
-        }
-
         return <sup {...props} />
       },
       // 自定义处理所有思考相关标签 - 显示思考过程的内容

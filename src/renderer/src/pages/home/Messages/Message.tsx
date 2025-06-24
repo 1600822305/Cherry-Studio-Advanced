@@ -1,3 +1,7 @@
+import { useTranslation } from 'react-i18next'
+import { shallowEqual } from 'react-redux'
+import styled from 'styled-components' // Ensure styled-components is imported
+
 import TTSProgressBar from '@renderer/components/TTSProgressBar'
 import { FONT_FAMILY } from '@renderer/config/constant'
 import { TranslateLanguageOptions } from '@renderer/config/translate'
@@ -11,16 +15,13 @@ import { getMessageModelId } from '@renderer/services/MessagesService'
 import { getModelUniqId } from '@renderer/services/ModelService'
 import TTSService from '@renderer/services/TTSService'
 import { useAppDispatch, useAppSelector } from '@renderer/store'
+import store from '@renderer/store'
 import { setLastPlayedMessageId, setSkipNextAutoTTS } from '@renderer/store/settings'
 import { Assistant, Message, Topic } from '@renderer/types'
 import { classNames } from '@renderer/utils'
 import { Divider, Dropdown } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
 import { Dispatch, FC, memo, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { shallowEqual } from 'react-redux'
-// import { useSelector } from 'react-redux'; // Removed unused import
-import styled from 'styled-components' // Ensure styled-components is imported
 
 // 扩展Window接口
 declare global {
@@ -98,7 +99,7 @@ const MessageItem: FC<Props> = ({
   const playTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // --- Consolidated State Selection with shallowEqual for performance ---
-  const { ttsEnabled, voiceCallEnabled, isVoiceCallActive, lastPlayedMessageId, skipNextAutoTTS } = useAppSelector(
+  const { ttsEnabled, isVoiceCallActive, lastPlayedMessageId, skipNextAutoTTS } = useAppSelector(
     (state) => ({
       ttsEnabled: state.settings.ttsEnabled,
       voiceCallEnabled: state.settings.voiceCallEnabled,
@@ -181,38 +182,50 @@ const MessageItem: FC<Props> = ({
     if (generating) return false // 正在生成中时不播放
     if (!ttsEnabled) return false // TTS功能必须启用
 
-    // 语音通话相关条件检查
-    if (!voiceCallEnabled || !isVoiceCallActive) {
-      console.log('不自动播放TTS: 语音通话未开启或窗口未激活, ID:', message.id)
-      return false
-    }
+    // 检查是否是通过语音通话按钮发送的消息
+    const isThroughVoiceCall = message.metadata?.isVoiceCallMessage === true;
 
     // 检查是否需要跳过自动TTS
     if (skipNextAutoTTS === true) {
-      console.log('跳过自动TTS: skipNextAutoTTS = true, 消息ID:', message.id)
-      return false
+      console.log('跳过自动TTS: skipNextAutoTTS = true, 消息ID:', message.id);
+      return false;
     }
 
     // 检查消息是否有内容，且消息是新的（不是上次播放过的消息）
     if (!message.content || !message.content.trim() || message.id === lastPlayedMessageId) {
-      return false
+      return false;
     }
 
-    // 所有条件都满足，应该自动播放
-    return true
+    // 语音通话相关条件检查
+    if (isThroughVoiceCall || isVoiceCallActive) {
+      // 如果是语音通话消息或语音通话窗口激活，则应播放
+      console.log('语音通话消息或窗口激活，应自动播放TTS, 消息ID:', message.id);
+      return true;
+    } else {
+      // 非语音通话模式下，根据设置决定是否自动播放
+      const autoPlayOutsideVoiceCall = store.getState().settings.autoPlayTTSOutsideVoiceCall;
+
+      if (autoPlayOutsideVoiceCall) {
+        console.log('非语音通话模式，但允许自动播放TTS, 消息ID:', message.id);
+        return true;
+      } else {
+        console.log('非语音通话模式，不允许自动播放TTS, 消息ID:', message.id);
+        return false;
+      }
+    }
   }, [
     isLastMessage,
     isAssistantMessage,
     message.status,
     message.content,
     message.id,
+    message.metadata,
     generating,
     ttsEnabled,
-    voiceCallEnabled,
     isVoiceCallActive,
     skipNextAutoTTS,
     lastPlayedMessageId
-  ])
+  ]);
 
   // --- 简化后的 TTS 自动播放逻辑 ---
   useEffect(() => {
@@ -486,7 +499,7 @@ const useContextMenuItems = (t: (key: string) => string, message: Message) => {
     // 清理函数
     return () => {
       // 使用类型断言来避免 TypeScript 错误
-      ;(window as any).toggleTranslation = undefined
+      ; (window as any).toggleTranslation = undefined
     }
   }, [])
 

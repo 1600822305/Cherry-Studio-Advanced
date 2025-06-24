@@ -12,7 +12,7 @@ class WebSearchService {
   private initialized = false
 
   /**
-   * 确保DeepSearch供应商存在于列表中
+   * 确保必要的搜索供应商存在于列表中
    * @private
    */
   private ensureDeepSearchProvider(): void {
@@ -26,6 +26,7 @@ class WebSearchService {
       if (!providers) return
 
       const deepSearchExists = providers.some((provider) => provider.id === 'deep-search')
+      const bochaExists = providers.some((provider) => provider.id === 'bocha')
 
       if (!deepSearchExists) {
         console.log('[WebSearchService] 添加DeepSearch供应商到列表')
@@ -39,9 +40,22 @@ class WebSearchService {
         )
       }
 
+      if (!bochaExists) {
+        console.log('[WebSearchService] 添加Bocha供应商到列表')
+        store.dispatch(
+          addWebSearchProvider({
+            id: 'bocha',
+            name: 'Bocha',
+            apiKey: '',
+            apiHost: 'https://open.bochaai.com',
+            description: 'Bocha AI搜索服务，支持多语言搜索'
+          })
+        )
+      }
+
       this.initialized = true
     } catch (error) {
-      console.error('[WebSearchService] 初始化DeepSearch失败:', error)
+      console.error('[WebSearchService] 初始化搜索供应商失败:', error)
     }
   }
 
@@ -70,6 +84,7 @@ class WebSearchService {
     }
 
     // DeepSearch和本地搜索引擎总是可用的
+    // Bocha搜索引擎需要验证apiKey和apiHost
     if (provider.id === 'deep-search' || provider.id.startsWith('local-')) {
       return true
     }

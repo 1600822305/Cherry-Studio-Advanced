@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined, EllipsisOutlined, PlusOutlined, SortAscendingOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, EllipsisOutlined, ExportOutlined, PlusOutlined, SortAscendingOutlined } from '@ant-design/icons'
 import CustomTag from '@renderer/components/CustomTag'
 import { useAgents } from '@renderer/hooks/useAgents'
 import AssistantSettingsPopup from '@renderer/pages/settings/AssistantSettings'
@@ -23,6 +23,19 @@ const AgentCard: FC<Props> = ({ agent, onClick, activegroup, getLocalizedGroupNa
   const { removeAgent } = useAgents()
   const [isVisible, setIsVisible] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+
+  const exportAgent = useCallback((agent: Agent) => {
+    const agentData = JSON.stringify(agent, null, 2)
+    const blob = new Blob([agentData], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${agent.name}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [])
 
   const handleDelete = useCallback(
     (agent: Agent) => {
@@ -61,6 +74,15 @@ const AgentCard: FC<Props> = ({ agent, onClick, activegroup, getLocalizedGroupNa
       onClick: (e: any) => {
         e.domEvent.stopPropagation()
         ManageAgentsPopup.show()
+      }
+    },
+    {
+      key: 'export',
+      label: t('export.agent'),
+      icon: <ExportOutlined />,
+      onClick: (e: any) => {
+        e.domEvent.stopPropagation()
+        exportAgent(agent)
       }
     },
     {

@@ -6,6 +6,7 @@ import { useAppDispatch } from '@renderer/store'
 import {
   AssistantIconType,
   DEFAULT_SIDEBAR_ICONS,
+  InputBarButton,
   setAssistantIconType,
   setClickAssistantToShowTopic,
   setCustomCss,
@@ -20,6 +21,7 @@ import styled from 'styled-components'
 
 import { SettingContainer, SettingDivider, SettingGroup, SettingRow, SettingRowTitle, SettingTitle } from '..'
 import EnableDeepResearch from './EnableDeepResearch'
+import InputBarButtonsManager from './InputBarButtonsManager'
 import SidebarIconsManager from './SidebarIconsManager'
 
 const DisplaySettings: FC = () => {
@@ -34,7 +36,8 @@ const DisplaySettings: FC = () => {
     showTopicTime,
     customCss,
     sidebarIcons,
-    assistantIconType
+    assistantIconType,
+    inputBarDisabledButtons
   } = useSettings()
   const { theme: themeMode } = useTheme()
   const { t } = useTranslation()
@@ -42,6 +45,7 @@ const DisplaySettings: FC = () => {
 
   const [visibleIcons, setVisibleIcons] = useState(sidebarIcons?.visible || DEFAULT_SIDEBAR_ICONS)
   const [disabledIcons, setDisabledIcons] = useState(sidebarIcons?.disabled || [])
+  const [disabledButtons, setDisabledButtons] = useState<InputBarButton[]>(inputBarDisabledButtons || [])
 
   const handleWindowStyleChange = useCallback(
     (checked: boolean) => {
@@ -189,6 +193,16 @@ const DisplaySettings: FC = () => {
         />
       </SettingGroup>
 
+      <SettingGroup theme={theme}>
+        <SettingTitle>{t('settings.display.inputbar.title') || '输入框按钮设置'}</SettingTitle>
+        <SettingDivider />
+        <SettingHelpText>{t('settings.display.inputbar.description') || '选择要在输入框中显示的功能按钮'}</SettingHelpText>
+        <InputBarButtonsManager
+          disabledButtons={disabledButtons}
+          setDisabledButtons={setDisabledButtons}
+        />
+      </SettingGroup>
+
       <EnableDeepResearch />
       <SettingGroup theme={theme}>
         <SettingTitle>
@@ -222,6 +236,11 @@ const ResetButtonWrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+`
+const SettingHelpText = styled.div`
+  margin-bottom: 16px;
+  color: var(--color-text-2);
+  font-size: 14px;
 `
 
 export default DisplaySettings

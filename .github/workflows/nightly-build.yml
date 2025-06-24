@@ -44,7 +44,12 @@ jobs:
             ${{ runner.os }}-yarn-
 
       - name: Install Dependencies
-        run: yarn install
+        run: |
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            yarn install --ignore-optional
+          else
+            yarn install
+          fi
 
       - name: Generate date tag
         id: date
@@ -97,7 +102,7 @@ jobs:
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             # Setup installer
             find dist -name "*setup.exe" -exec cp {} renamed-artifacts/cherry-studio-nightly-${DATE}-setup.exe \;
-            
+
             # Portable exe
             find dist -name "*portable.exe" -exec cp {} renamed-artifacts/cherry-studio-nightly-${DATE}-portable.exe \;
 
@@ -114,7 +119,7 @@ jobs:
             find dist -name "*-arm64.dmg.blockmap" -exec cp {} renamed-artifacts/cherry-studio-nightly-${DATE}-arm64.dmg.blockmap \;
             find dist -name "*-arm64.zip" -exec cp {} renamed-artifacts/cherry-studio-nightly-${DATE}-arm64.zip \;
             find dist -name "*-arm64.zip.blockmap" -exec cp {} renamed-artifacts/cherry-studio-nightly-${DATE}-arm64.zip.blockmap \;
-            
+
             # 处理x64架构文件
             find dist -name "*-x64.dmg" -exec cp {} renamed-artifacts/cherry-studio-nightly-${DATE}-x64.dmg \;
             find dist -name "*-x64.dmg.blockmap" -exec cp {} renamed-artifacts/cherry-studio-nightly-${DATE}-x64.dmg.blockmap \;

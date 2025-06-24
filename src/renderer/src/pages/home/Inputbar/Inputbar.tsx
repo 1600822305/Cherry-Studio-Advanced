@@ -70,12 +70,14 @@ import NarrowLayout from '../Messages/NarrowLayout'
 import AgentModeButton from './AgentModeButton'
 import AttachmentButton, { AttachmentButtonRef } from './AttachmentButton'
 import AttachmentPreview from './AttachmentPreview'
+import DeepThinkingButton from './DeepThinkingButton'
 import KnowledgeBaseButton, { KnowledgeBaseButtonRef } from './KnowledgeBaseButton'
 import KnowledgeBaseInput from './KnowledgeBaseInput'
 import MCPToolsButton, { MCPToolsButtonRef } from './MCPToolsButton'
 import MentionModelsButton, { MentionModelsButtonRef } from './MentionModelsButton'
 import MentionModelsInput from './MentionModelsInput'
 import NewContextButton from './NewContextButton'
+import PolishTextButton from './PolishTextButton'
 import QuickPhrasesButton, { QuickPhrasesButtonRef } from './QuickPhrasesButton'
 import SendMessageButton from './SendMessageButton'
 import TokenCount from './TokenCount'
@@ -115,7 +117,8 @@ const Inputbar: FC<Props> = ({
     showInputEstimatedTokens,
     autoTranslateWithSpace,
     enableQuickPanelTriggers,
-    enableBackspaceDeleteModel
+    enableBackspaceDeleteModel,
+    inputBarDisabledButtons
     // 移除 scrollToMessage 的解构
   } = useSettings()
   const [expended, setExpend] = useState(false)
@@ -973,6 +976,11 @@ const Inputbar: FC<Props> = ({
     setTimeout(() => resizeTextArea(), 0)
   }
 
+  const onPolished = (polishedText: string) => {
+    setText(polishedText)
+    setTimeout(() => resizeTextArea(), 0)
+  }
+
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault()
     setIsDragging(true)
@@ -1388,6 +1396,14 @@ const Inputbar: FC<Props> = ({
 
   const isExpended = expended || !!textareaHeight
 
+  // 检查按钮是否被禁用
+  const isButtonDisabled = useCallback(
+    (buttonId: string) => {
+      return inputBarDisabledButtons?.includes(buttonId as any)
+    },
+    [inputBarDisabledButtons]
+  )
+
   return (
     <Container onDragOver={handleDragOver} onDrop={handleDrop} className="inputbar">
       <NarrowLayout style={{ width: '100%' }}>
@@ -1442,35 +1458,41 @@ const Inputbar: FC<Props> = ({
           </DragHandle>
           <Toolbar>
             <ToolbarMenu>
-              <Tooltip placement="top" title={t('chat.input.new_topic', { Command: newTopicShortcut })} arrow>
-                <ToolbarButton type="text" onClick={addNewTopic}>
-                  <MessageSquareDiff size={19} />
-                </ToolbarButton>
-              </Tooltip>
+              {!isButtonDisabled('new_topic') && (
+                <Tooltip placement="top" title={t('chat.input.new_topic', { Command: newTopicShortcut })} arrow>
+                  <ToolbarButton type="text" onClick={addNewTopic}>
+                    <MessageSquareDiff size={19} />
+                  </ToolbarButton>
+                </Tooltip>
+              )}
               {/* Add Workspace Toggle Button here */}
-              {onToggleWorkspacePanel && (
+              {onToggleWorkspacePanel && !isButtonDisabled('workspace') && (
                 <Tooltip placement="top" title={t('workspace.toggle')} arrow>
                   <ToolbarButton type="text" onClick={onToggleWorkspacePanel}>
                     <FolderOutlined />
                   </ToolbarButton>
                 </Tooltip>
               )}
-              <AttachmentButton
-                ref={attachmentButtonRef}
-                model={model}
-                files={files}
-                setFiles={setFiles}
-                ToolbarButton={ToolbarButton}
-              />
-              <Tooltip placement="top" title={t('chat.input.web_search')} arrow>
-                <ToolbarButton type="text" onClick={onEnableWebSearch}>
-                  <Globe
-                    size={18}
-                    style={{ color: assistant.enableWebSearch ? 'var(--color-link)' : 'var(--color-icon)' }}
-                  />
-                </ToolbarButton>
-              </Tooltip>
-              {showKnowledgeIcon && (
+              {!isButtonDisabled('attachment') && (
+                <AttachmentButton
+                  ref={attachmentButtonRef}
+                  model={model}
+                  files={files}
+                  setFiles={setFiles}
+                  ToolbarButton={ToolbarButton}
+                />
+              )}
+              {!isButtonDisabled('web_search') && (
+                <Tooltip placement="top" title={t('chat.input.web_search')} arrow>
+                  <ToolbarButton type="text" onClick={onEnableWebSearch}>
+                    <Globe
+                      size={18}
+                      style={{ color: assistant.enableWebSearch ? 'var(--color-link)' : 'var(--color-icon)' }}
+                    />
+                  </ToolbarButton>
+                </Tooltip>
+              )}
+              {showKnowledgeIcon && !isButtonDisabled('knowledge_base') && (
                 <KnowledgeBaseButton
                   ref={knowledgeBaseButtonRef}
                   selectedBases={selectedKnowledgeBases}
@@ -1479,79 +1501,161 @@ const Inputbar: FC<Props> = ({
                   disabled={files.length > 0}
                 />
               )}
-              <MCPToolsButton
-                ref={mcpToolsButtonRef}
-                enabledMCPs={enabledMCPs}
-                toggelEnableMCP={toggelEnableMCP}
-                ToolbarButton={ToolbarButton}
-                setInputValue={setText}
-                resizeTextArea={resizeTextArea}
-              />
+              {!isButtonDisabled('mcp_tools') && (
+                <MCPToolsButton
+                  ref={mcpToolsButtonRef}
+                  enabledMCPs={enabledMCPs}
+                  toggelEnableMCP={toggelEnableMCP}
+                  ToolbarButton={ToolbarButton}
+                  setInputValue={setText}
+                  resizeTextArea={resizeTextArea}
+                />
+              )}
               {/* 将 agentTasks 属性传递给 AgentModeButton。注意：这里暂时传递空数组，实际数据应从父组件获取并传递 */}
-              <AgentModeButton
-                ToolbarButton={ToolbarButton}
-                agentTasks={agentTasks || []}
-                scrollToMessage={scrollToMessage} // 传递 scrollToMessage prop
-              />
-              <MentionModelsButton
-                ref={mentionModelsButtonRef}
-                mentionModels={mentionModels}
-                onMentionModel={onMentionModel}
-                ToolbarButton={ToolbarButton}
-              />
-              <QuickPhrasesButton
-                ref={quickPhrasesButtonRef}
-                setInputValue={setText}
-                resizeTextArea={resizeTextArea}
-                ToolbarButton={ToolbarButton}
-              />
-              <Tooltip placement="top" title={t('chat.input.clear', { Command: cleanTopicShortcut })} arrow>
-                <ToolbarButton type="text" onClick={clearTopic}>
-                  <PaintbrushVertical size={18} />
-                </ToolbarButton>
-              </Tooltip>
-              <Tooltip placement="top" title={isExpended ? t('chat.input.collapse') : t('chat.input.expand')} arrow>
-                <ToolbarButton type="text" onClick={onToggleExpended}>
-                  {isExpended ? <Minimize size={18} /> : <Maximize size={18} />}
-                </ToolbarButton>
-              </Tooltip>
-              <NewContextButton onNewContext={onNewContext} ToolbarButton={ToolbarButton} />
+              {!isButtonDisabled('agent_mode') && (
+                <AgentModeButton
+                  ToolbarButton={ToolbarButton}
+                  agentTasks={agentTasks || []}
+                  scrollToMessage={scrollToMessage} // 传递 scrollToMessage prop
+                />
+              )}
+              {!isButtonDisabled('mention_models') && (
+                <MentionModelsButton
+                  ref={mentionModelsButtonRef}
+                  mentionModels={mentionModels}
+                  onMentionModel={onMentionModel}
+                  ToolbarButton={ToolbarButton}
+                />
+              )}
+              {!isButtonDisabled('quick_phrases') && (
+                <QuickPhrasesButton
+                  ref={quickPhrasesButtonRef}
+                  setInputValue={setText}
+                  resizeTextArea={resizeTextArea}
+                  ToolbarButton={ToolbarButton}
+                />
+              )}
+              {!isButtonDisabled('clear') && (
+                <Tooltip placement="top" title={t('chat.input.clear', { Command: cleanTopicShortcut })} arrow>
+                  <ToolbarButton type="text" onClick={clearTopic}>
+                    <PaintbrushVertical size={18} />
+                  </ToolbarButton>
+                </Tooltip>
+              )}
+              {!isButtonDisabled('expand') && (
+                <Tooltip placement="top" title={isExpended ? t('chat.input.collapse') : t('chat.input.expand')} arrow>
+                  <ToolbarButton type="text" onClick={onToggleExpended}>
+                    {isExpended ? <Minimize size={18} /> : <Maximize size={18} />}
+                  </ToolbarButton>
+                </Tooltip>
+              )}
+              {!isButtonDisabled('new_context') && (
+                <NewContextButton onNewContext={onNewContext} ToolbarButton={ToolbarButton} />
+              )}
               <TokenCount
                 estimateTokenCount={estimateTokenCount}
                 inputTokenCount={inputTokenCount}
                 contextCount={contextCount}
+                topic={topic}
                 ToolbarButton={ToolbarButton}
                 onClick={onNewContext}
               />
             </ToolbarMenu>
             <ToolbarMenu>
-              <TranslateButton text={text} onTranslated={onTranslated} isLoading={isTranslating} />
-              <ASRButton
-                onTranscribed={(transcribedText, isFinal) => {
-                  // 如果是空字符串，不做任何处理
-                  if (!transcribedText) return
-
-                  if (isFinal) {
-                    // 最终结果，添加到输入框中
-                    setText((prevText) => {
-                      // 如果当前输入框为空，直接设置为识别的文本
-                      if (!prevText.trim()) {
-                        return transcribedText
-                      }
-
-                      // 否则，添加识别的文本到输入框中，用空格分隔
-                      return prevText + ' ' + transcribedText
+              {!isButtonDisabled('translate') && (
+                <TranslateButton text={text} onTranslated={onTranslated} isLoading={isTranslating} />
+              )}
+              {!isButtonDisabled('polish_text') && (
+                <PolishTextButton text={text} onPolished={onPolished} />
+              )}
+              {!isButtonDisabled('deep_thinking') && (
+                <DeepThinkingButton
+                  text={text}
+                  files={files}
+                  topic={topic}
+                  onDeepThinking={async (thinkingResult) => {
+                    // 创建用户消息
+                    const userMessage = getUserMessage({
+                      assistant,
+                      topic,
+                      type: 'text',
+                      content: text
                     })
 
-                    // 清除当前识别的文本
-                    setAsrCurrentText('')
-                  } else {
-                    // 中间结果，保存到状态变量中，但不更新输入框
-                    setAsrCurrentText(transcribedText)
-                  }
-                }}
-              />
-              <VoiceCallButton disabled={loading} />
+                    // 添加文件附件
+                    if (files && files.length > 0) {
+                      userMessage.files = files;
+                    }
+
+                    // 添加思考结果作为助手消息
+                    const assistantMessage = {
+                      ...userMessage,
+                      id: `thinking-${Date.now()}`,
+                      role: 'assistant' as const,
+                      content: thinkingResult,
+                      createdAt: new Date().toISOString(),
+                      thinking: true // 标记为思考消息
+                    }
+
+                    // 将用户消息和思考结果添加到当前主题
+                    if (topic && topic.id) {
+                      try {
+                        // 添加用户消息和助手消息
+                        await addAssistantMessagesToTopic(topic.id, [userMessage, assistantMessage])
+
+                        // 打印日志，便于调试
+                        console.log('[DeepThinking] Added user message and thinking result to topic:', topic.id)
+                        console.log('[DeepThinking] User message:', userMessage)
+                        console.log('[DeepThinking] Assistant message:', assistantMessage)
+                      } catch (error) {
+                        console.error('Failed to add messages to topic:', error)
+                        window.message.error({
+                          content: t('deep_thinking.error.failed'),
+                          key: 'deep-thinking-message'
+                        })
+                      }
+                    } else {
+                      console.error('Topic is undefined or missing id')
+                      window.message.error({
+                        content: t('deep_thinking.error.failed'),
+                        key: 'deep-thinking-message'
+                      })
+                    }
+
+                    // 清空输入框
+                    setText('')
+                    setFiles([]) // 清空文件附件
+                    setTimeout(() => resizeTextArea(), 0)
+                  }} />
+              )}
+              {!isButtonDisabled('asr') && (
+                <ASRButton
+                  onTranscribed={(transcribedText, isFinal) => {
+                    // 如果是空字符串，不做任何处理
+                    if (!transcribedText) return
+
+                    if (isFinal) {
+                      // 最终结果，添加到输入框中
+                      setText((prevText) => {
+                        // 如果当前输入框为空，直接设置为识别的文本
+                        if (!prevText.trim()) {
+                          return transcribedText
+                        }
+
+                        // 否则，添加识别的文本到输入框中，用空格分隔
+                        return prevText + ' ' + transcribedText
+                      })
+
+                      // 清除当前识别的文本
+                      setAsrCurrentText('')
+                    } else {
+                      // 中间结果，保存到状态变量中，但不更新输入框
+                      setAsrCurrentText(transcribedText)
+                    }
+                  }}
+                />
+              )}
+              {!isButtonDisabled('voice_call') && <VoiceCallButton disabled={loading} />}
               {loading && (
                 <Tooltip placement="top" title={t('chat.input.pause')} arrow>
                   <ToolbarButton type="text" onClick={onPause} style={{ marginRight: -2, marginTop: 1 }}>

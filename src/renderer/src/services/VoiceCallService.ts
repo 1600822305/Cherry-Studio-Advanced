@@ -3,12 +3,9 @@ import { fetchChatCompletion } from '@renderer/services/ApiService'
 import ASRService from '@renderer/services/ASRService'
 import { getDefaultAssistant } from '@renderer/services/AssistantService'
 import { EVENT_NAMES, EventEmitter } from '@renderer/services/EventService'
-import { getAssistantMessage, getUserMessage } from '@renderer/services/MessagesService'
 import TTSService from '@renderer/services/TTSService'
 import store from '@renderer/store'
 import { setSkipNextAutoTTS } from '@renderer/store/settings'
-// 导入类型
-import type { Message } from '@renderer/types'
 import i18n from 'i18next'
 
 interface VoiceCallCallbacks {
@@ -30,7 +27,6 @@ class VoiceCallServiceClass {
   private recognition: any = null
   private isCallActive = false
   private isRecording = false // 新增录音状态
-  private isMuted = false
   private isPaused = false
   private callbacks: VoiceCallCallbacks | null = null
   private _currentTranscript = '' // 使用下划线前缀避免未使用警告
@@ -46,8 +42,9 @@ class VoiceCallServiceClass {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       stream.getTracks().forEach((track) => track.stop())
     } catch (error) {
-      console.error('Microphone permission denied:', error)
-      throw new Error('Microphone permission denied')
+      console.error('麦克风权限被拒绝:', error)
+      console.error(i18n.t('settings.voice_call.microphone_denied'))
+      throw new Error('麦克风权限被拒绝')
     }
 
     // 获取当前ASR服务类型
@@ -56,7 +53,8 @@ class VoiceCallServiceClass {
     // 如果使用浏览器ASR，检查浏览器支持
     if (asrServiceType === 'browser') {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        throw new Error('Speech recognition not supported in this browser')
+        console.error(i18n.t('settings.asr.error.browser_not_support'))
+        throw new Error('当前浏览器不支持语音识别')
       }
 
       // 初始化浏览器语音识别
@@ -65,20 +63,60 @@ class VoiceCallServiceClass {
       this.recognition.continuous = true
       this.recognition.interimResults = true
       this.recognition.lang = navigator.language || 'zh-CN'
+      
+      // 添加错误处理
+      this.recognition.onerror = (event: any) => {
+        const errorMessage = event.error || '未知错误';
+        console.error('浏览器语音识别错误:', errorMessage)
+        window.message.error({ 
+          content: `语音识别错误: ${errorMessage}`, 
+          key: 'voice-call-error' 
+        })
+      }
     } else if (asrServiceType === 'local') {
-      // 如果使用本地服务器ASR，检查连接
+      // 如果使用本地服务器ASR，实现连接重试机制
       try {
-        // 尝试连接本地ASR服务器
+        // 尝试连接本地ASR服务器，最多尝试3次
         console.log('初始化时尝试连接语音识别服务器')
-        const connected = await ASRService.connectToWebSocketServer()
-        if (!connected) {
-          console.warn('无法连接到语音识别服务，将在需要时重试')
-          // 不抛出异常，允许程序继续运行，在需要时重试
-        } else {
-          console.log('语音识别服务器连接成功')
+        
+        // 定义重试机制
+        const maxRetries = 3;
+        let retryCount = 0;
+        let connected = false;
+        
+        while (!connected && retryCount < maxRetries) {
+          try {
+            connected = await ASRService.connectToWebSocketServer();
+            if (connected) {
+              console.log('语音识别服务器连接成功');
+              break;
+            } else {
+              retryCount++;
+              console.warn(`连接语音识别服务器失败，正在重试 (${retryCount}/${maxRetries})...`);
+              // 等待一段时间再重试
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          } catch (connError) {
+            retryCount++;
+            console.error(`连接语音识别服务器失败 (${retryCount}/${maxRetries}):`, connError);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
-      } catch (error) {
-        console.error('连接语音识别服务器失败:', error)
+        
+        if (!connected) {
+          console.warn('多次尝试后仍无法连接到语音识别服务，将在需要时重试');
+          // 显示轻量级警告但不中断流程
+          window.message.warning({ 
+            content: i18n.t('settings.asr.warning.connection_retry_later'), 
+            key: 'voice-call-warning' 
+          });
+        }
+      } catch (initialError) {
+        console.error('连接语音识别服务器失败:', initialError);
+        window.message.warning({ 
+          content: i18n.t('settings.asr.warning.connection_failed'), 
+          key: 'voice-call-warning' 
+        });
         // 不抛出异常，允许程序继续运行，在需要时重试
       }
     }
@@ -102,18 +140,29 @@ class VoiceCallServiceClass {
         const connected = await ASRService.connectToWebSocketServer()
         if (!connected) {
           console.warn('无法连接到语音识别服务器，将在需要时重试')
+          // 显示警告但不中断流程
+          window.message.warning({ 
+            content: i18n.t('settings.asr.warning.connection_retry_later') || '无法连接到语音识别服务器，将在需要时重试', 
+            key: 'voice-call-warning' 
+          })
         } else {
           console.log('语音识别服务器连接成功')
         }
-      } catch (error) {
-        console.error('连接语音识别服务器失败:', error)
+      } catch (connError) {
+        console.error('连接语音识别服务器失败:', connError)
+        // 显示警告但不中断流程
+        window.message.warning({ 
+          content: i18n.t('settings.asr.warning.connection_failed') || '连接语音识别服务器失败，将在需要时重试', 
+          key: 'voice-call-warning' 
+        })
       }
     }
 
     // 根据不同的ASR服务类型进行初始化
     if (asrServiceType === 'browser') {
       if (!this.recognition) {
-        throw new Error('Browser speech recognition not initialized')
+        window.message.error({ content: i18n.t('settings.asr.error.browser_not_support') || '浏览器不支持语音识别', key: 'voice-call-error' })
+        throw new Error('浏览器语音识别未初始化')
       }
 
       // 设置浏览器语音识别事件处理
@@ -167,40 +216,56 @@ class VoiceCallServiceClass {
       }
 
       this.recognition.onerror = (event: any) => {
-        console.error('Speech recognition error', event.error)
+        const errorMessage = typeof event.error === 'string' ? event.error : '未知错误'
+        console.error('语音识别错误', errorMessage)
         this.isRecording = false
         this.callbacks?.onListeningStateChange(false)
+        
+        // 避免在录音中显示过多错误消息
+        if (!this.isPaused) {
+          window.message.error({ 
+            content: `语音识别错误: ${errorMessage}`, 
+            key: 'voice-call-error' 
+          })
+        }
       }
     }
 
     // 设置skipNextAutoTTS为true，防止自动播放最后一条消息
     store.dispatch(setSkipNextAutoTTS(true))
 
-    // 播放欢迎语音 - 根据当前语言获取本地化的欢迎消息
-    const welcomeMessage = i18n.t('settings.voice_call.welcome_message')
-    // 不调用onResponse，避免触发两次TTS播放
-    // this.callbacks?.onResponse(welcomeMessage)
+    try {
+      // 播放欢迎语音 - 根据当前语言获取本地化的欢迎消息
+      const welcomeMessage = i18n.t('settings.voice_call.welcome_message')
 
-    // 监听TTS状态
-    const ttsStateHandler = (isPlaying: boolean) => {
-      this.callbacks?.onSpeakingStateChange(isPlaying)
-    }
+      // 监听TTS状态
+      const ttsStateHandler = (isPlaying: boolean) => {
+        this.callbacks?.onSpeakingStateChange(isPlaying)
+      }
 
-    // 监听TTS播放状态
-    window.addEventListener('tts-state-change', (event: any) => {
-      ttsStateHandler(event.detail.isPlaying)
-    })
+      // 监听TTS播放状态
+      window.addEventListener('tts-state-change', (event: any) => {
+        ttsStateHandler(event.detail.isPlaying)
+      })
 
-    // 播放欢迎语音，并手动设置初始状态
-    this.callbacks?.onSpeakingStateChange(true)
-    this.ttsService.speak(welcomeMessage)
-
-    // 确保欢迎语音结束后状态正确
-    setTimeout(() => {
-      if (this.ttsService && !this.ttsService.isCurrentlyPlaying()) {
+      // 播放欢迎语音，并手动设置初始状态
+      this.callbacks?.onSpeakingStateChange(true)
+      
+      // 使用await等待TTS播放完成
+      await this.ttsService.speak(welcomeMessage)
+      
+      // 等待一小段时间确保状态更新
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // 播放完成后更新状态
+      if (!this.ttsService.isCurrentlyPlaying()) {
         this.callbacks?.onSpeakingStateChange(false)
       }
-    }, 5000) // 5秒后检查TTS状态
+    } catch (error) {
+      console.error('播放欢迎语音失败:', error)
+      // 错误时也要确保状态正确
+      this.callbacks?.onSpeakingStateChange(false)
+    }
 
     return true
   }
@@ -458,8 +523,17 @@ class VoiceCallServiceClass {
    * @param text 语音识别结果文本
    * @param sendToChat 是否将结果发送到聊天界面
    */
-  async handleUserSpeech(text: string, sendToChat: boolean = false) {
-    if (!this.isCallActive || this.isProcessingResponse || this.isPaused) return
+  async handleUserSpeech(text: string, sendToChat: boolean = false): Promise<boolean> {
+    // 空文本检查
+    if (!text || text.trim() === '') {
+      console.log('语音识别结果为空，不处理');
+      return false;
+    }
+
+    if (!this.isCallActive || this.isProcessingResponse || this.isPaused) {
+      console.log('语音通话未激活或正在处理或已暂停，不处理语音输入');
+      return false;
+    }
 
     // 暂停语音识别，避免在AI回复时继续识别
     const { asrServiceType } = store.getState().settings
@@ -474,6 +548,9 @@ class VoiceCallServiceClass {
     try {
       // 获取当前助手
       const assistant = getDefaultAssistant()
+      if (!assistant) {
+        throw new Error('无法获取默认助手');
+      }
 
       // 检查是否有自定义模型
       const { voiceCallModel } = store.getState().settings
@@ -490,215 +567,167 @@ class VoiceCallServiceClass {
         console.log('将语音识别结果发送到聊天界面:', text)
 
         try {
-          // 获取语音通话专用模型
-          const { voiceCallModel } = store.getState().settings
-
-          // 打印日志查看模型信息
-          console.log('语音通话专用模型:', voiceCallModel ? JSON.stringify(voiceCallModel) : 'null')
-          console.log('助手模型:', assistant.model ? JSON.stringify(assistant.model) : 'null')
-
           // 准备要发送的模型
           const modelToUse = voiceCallModel || assistant.model
-
-          // 确保模型对象完整
-          if (modelToUse && typeof modelToUse === 'object') {
-            console.log('使用完整模型对象:', modelToUse.name || modelToUse.id)
-          } else {
-            console.error('模型对象不完整或不存在')
+          if (!modelToUse) {
+            throw new Error('没有可用的模型');
           }
 
-          // 直接触发事件，将语音识别结果发送到聊天界面
-          // 优先使用语音通话专用模型，而不是助手模型
+          // 打印日志查看模型信息
+          console.log('使用模型:', modelToUse ? JSON.stringify(modelToUse) : 'null')
+
+          // 准备事件数据
           const eventData = {
             text,
             model: modelToUse,
             isVoiceCall: true, // 标记这是语音通话消息
+            isVoiceCallMessage: true, // 明确标记这是语音通话消息，供Message组件使用
             useVoiceCallModel: true, // 明确标记使用语音通话模型
             voiceCallModelId: voiceCallModel?.id // 传递语音通话模型ID
           }
 
-          // 打印完整的事件数据
-          console.log('发送语音通话消息事件数据:', JSON.stringify(eventData))
-
           // 发送事件
           EventEmitter.emit(EVENT_NAMES.VOICE_CALL_MESSAGE, eventData)
-
-          // 打印日志确认事件已触发
-          console.log(
-            '事件已触发，消息内容:',
-            text,
-            '模型:',
-            voiceCallModel ? voiceCallModel.name : assistant.model?.name
-          )
+          console.log('语音通话消息事件已触发')
 
           // 使用消息通知用户
           window.message.success({ content: '语音识别已完成，正在发送消息...', key: 'voice-call-send' })
-        } catch (error) {
-          console.error('发送语音识别结果到聊天界面时出错:', error)
-          window.message.error({ content: '发送语音识别结果失败', key: 'voice-call-error' })
+
+          // 处理完成后重置状态
+          this.isProcessingResponse = false
+          return true
+        } catch (sendError) {
+          const errorMsg = sendError instanceof Error ? sendError.message : String(sendError);
+          console.error('发送语音通话消息失败:', errorMsg)
+          window.message.error({ content: '发送语音通话消息失败', key: 'voice-call-error' })
+          this.isProcessingResponse = false
+          return false
         }
-
-        // 不在这里处理响应，因为聊天界面会处理
-        this.isProcessingResponse = false
-        return
       }
 
-      // 以下是原有的处理逻辑，用于独立的语音通话窗口
-      // 创建一个简单的Topic对象
-      const topic = {
-        id: 'voice-call',
-        assistantId: assistant.id,
-        name: 'Voice Call',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        messages: []
-      }
-
-      // 创建用户消息
-      const userMessage = getUserMessage({
-        assistant,
-        topic,
-        type: 'text',
-        content: text
-      })
-
-      // 创建助手消息
-      const assistantMessage = getAssistantMessage({
-        assistant,
-        topic
-      })
-
-      // 更新对话历史
-      this.conversationHistory.push({ role: 'user', content: text })
-
-      // 构建消息列表
-      // 将历史消息转换为正确的Message对象
-      const historyMessages = this.conversationHistory.map((msg) => {
-        if (msg.role === 'user') {
-          return getUserMessage({
-            assistant,
-            topic,
-            type: 'text',
-            content: msg.content
-          })
-        } else {
-          const assistantMsg = getAssistantMessage({
-            assistant,
-            topic
-          })
-          return { ...assistantMsg, content: msg.content, status: 'success' }
-        }
-      })
-
-      // 获取用户自定义提示词
-      const { voiceCallPrompt } = store.getState().settings
-
-      // 使用自定义提示词或默认提示词
-      const promptToUse = voiceCallPrompt || DEFAULT_VOICE_CALL_PROMPT
-
-      // 创建系统指令消息
-      const systemMessage = {
-        role: 'system',
-        content: promptToUse
-      }
-
-      // 修改用户消息的内容
-      userMessage.content = text
-
-      // 构建最终消息列表
-      // 使用类型断言解决类型问题
-      const messages = [systemMessage, ...historyMessages, userMessage] as Message[]
-
-      // 流式响应处理
-      let fullResponse = ''
-
+      // 如果不发送到聊天界面，则在这里处理对话
       try {
-        // 调用真实的LLM API
-        await fetchChatCompletion({
-          message: assistantMessage,
-          messages,
-          assistant,
-          onResponse: async (msg) => {
-            if (msg.content && msg.content !== fullResponse) {
-              fullResponse = msg.content
+        // 添加用户消息到对话历史
+        this.conversationHistory.push({ role: 'user', content: text })
 
-              // 更新UI
-              this.callbacks?.onResponse(fullResponse)
+        // 更新对话界面中的显示
+        this.callbacks?.onTranscript('')
 
-              // 如果TTS正在播放，停止它
-              if (this.ttsService.isCurrentlyPlaying()) {
-                this.ttsService.stop()
-              }
-            }
+        // 开始处理AI响应
+        const messages = [...this.conversationHistory]
+
+        // 获取自定义语音通话提示词
+        const settings = store.getState().settings
+        const customPrompt = settings.voiceCallPrompt || DEFAULT_VOICE_CALL_PROMPT
+        
+        // 添加系统提示词
+        messages.unshift({ role: 'system', content: customPrompt })
+
+        // 调用API获取AI回复
+        const modelToUse = voiceCallModel || assistant.model
+        if (!modelToUse) {
+          throw new Error('没有可用的模型');
+        }
+
+        // 创建消息对象
+        const topic = { id: 'voice-call', name: '语音通话' }
+        const userMsg = {
+          id: 'voice-call-user-' + Date.now(),
+          role: 'user' as 'user',
+          content: text,
+          assistantId: assistant.id,
+          topicId: topic.id,
+          model: modelToUse,
+          createdAt: new Date().toISOString(),
+          type: 'text' as 'text',
+          status: 'success' as 'success'
+        }
+        
+        const aiMsg = {
+          id: 'voice-call-ai-' + Date.now(),
+          role: 'assistant' as 'assistant',
+          content: '',
+          assistantId: assistant.id,
+          topicId: topic.id,
+          model: modelToUse,
+          createdAt: new Date().toISOString(),
+          type: 'text' as 'text',
+          status: 'sending' as 'sending',
+          metadata: {
+            isVoiceCallMessage: true // 标记为语音通话消息，确保自动TTS播放
+          }
+        }
+
+        // 开始请求AI响应
+        window.message.loading({ content: '正在思考...', key: 'voice-call-thinking' })
+        
+        // 发送API请求
+        const result = await fetchChatCompletion({
+          message: aiMsg,
+          messages: [userMsg],
+          assistant: assistant,
+          onResponse: (msg) => {
+            console.log('收到AI响应进度更新:', msg.content.length > 20 ? msg.content.substring(0, 20) + '...' : msg.content)
           }
         })
+        
+        if (!result || !result.content) {
+          throw new Error('获取AI回复失败');
+        }
 
-        // 播放完整响应
-        if (!this.isMuted && this.isCallActive) {
-          // 手动设置语音状态
-          this.callbacks?.onSpeakingStateChange(true)
+        // 添加AI回复到对话历史
+        this.conversationHistory.push({ role: 'assistant', content: result.content })
 
-          // 添加TTS状态变化事件监听器
-          const handleTTSStateChange = (event: CustomEvent) => {
-            const { isPlaying } = event.detail
-            console.log('语音通话中检测到TTS状态变化:', isPlaying)
-            this.callbacks?.onSpeakingStateChange(isPlaying)
+        // 关闭思考中提示
+        window.message.success({ content: '思考完成', key: 'voice-call-thinking' })
+
+        // 合成语音并播放
+        this.callbacks?.onResponse(result.content)
+
+        // 更新UI状态
+        this.callbacks?.onSpeakingStateChange(true)
+
+        // 合成并播放语音
+        try {
+          await this.ttsService.speak(result.content)
+          // 等待一小段时间确保状态更新
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          // 播放完成后更新状态
+          if (!this.ttsService.isCurrentlyPlaying()) {
+            this.callbacks?.onSpeakingStateChange(false)
           }
-
-          // 添加事件监听器
-          window.addEventListener('tts-state-change', handleTTSStateChange as EventListener)
-
-          // 更新助手消息的内容
-          assistantMessage.content = fullResponse
-          assistantMessage.status = 'success'
-
-          // 使用speakFromMessage方法播放，会应用TTS过滤选项
-          this.ttsService.speakFromMessage(assistantMessage)
-
-          // 设置超时安全机制，确保事件监听器被移除
-          setTimeout(() => {
-            window.removeEventListener('tts-state-change', handleTTSStateChange as EventListener)
-          }, 30000) // 30秒后移除事件监听器
+        } catch (ttsError) {
+          const ttsErrorMsg = ttsError instanceof Error ? ttsError.message : String(ttsError);
+          console.error('TTS播放失败:', ttsErrorMsg)
+          // 确保状态更新
+          this.callbacks?.onSpeakingStateChange(false)
         }
 
-        // 更新对话历史
-        this.conversationHistory.push({ role: 'assistant', content: fullResponse })
-      } catch (innerError) {
-        console.error('Error generating response:', innerError)
-        // 如果出错，使用一个简单的回复
-        fullResponse = `抱歉，处理您的请求时出错了。`
-        this.callbacks?.onResponse(fullResponse)
-
-        if (!this.isMuted && this.isCallActive) {
-          // 手动设置语音状态
-          this.callbacks?.onSpeakingStateChange(true)
-
-          // 创建一个简单的助手消息对象
-          const errorMessage = {
-            id: 'error-message',
-            role: 'assistant',
-            content: fullResponse,
-            status: 'success'
-          } as Message
-
-          // 使用speakFromMessage方法播放，会应用TTS过滤选项
-          this.ttsService.speakFromMessage(errorMessage)
-
-          // 确保语音结束后状态正确
-          setTimeout(() => {
-            if (this.ttsService && !this.ttsService.isCurrentlyPlaying()) {
-              this.callbacks?.onSpeakingStateChange(false)
-            }
-          }, 1000) // 1秒后检查TTS状态
-        }
+        // 处理完成后重置状态
+        this.isProcessingResponse = false
+        return true
+      } catch (dialogError) {
+        const dialogErrorMsg = dialogError instanceof Error ? dialogError.message : String(dialogError);
+        console.error('处理对话失败:', dialogError)
+        window.message.error({ content: '处理对话失败: ' + dialogErrorMsg, key: 'voice-call-error' })
+        
+        // 处理完成后重置状态
+        this.isProcessingResponse = false
+        
+        // 确保TTS状态重置
+        this.callbacks?.onSpeakingStateChange(false)
+        
+        return false
       }
     } catch (error) {
-      console.error('Error processing voice response:', error)
-    } finally {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('处理用户语音输入失败:', error)
+      window.message.error({ content: '处理用户语音输入失败: ' + errorMsg, key: 'voice-call-error' })
+      
+      // 处理完成后重置状态
       this.isProcessingResponse = false
-
-      // 不自动恢复语音识别，等待用户长按按钮
-      // 长按说话模式下，我们不需要自动恢复语音识别
+      return false
     }
   }
 
@@ -917,8 +946,6 @@ class VoiceCallServiceClass {
   }
 
   setMuted(muted: boolean) {
-    this.isMuted = muted
-
     // 如果设置为静音，停止当前TTS播放
     if (muted && this.ttsService.isCurrentlyPlaying()) {
       this.ttsService.stop()
@@ -960,24 +987,76 @@ class VoiceCallServiceClass {
   }
 
   endCall() {
+    if (!this.isCallActive) {
+      return; // 避免重复调用
+    }
+
+    // 设置状态为非活动
     this.isCallActive = false
 
-    // 获取当前ASR服务类型
-    const { asrServiceType } = store.getState().settings
+    try {
+      // 获取当前ASR服务类型
+      const { asrServiceType } = store.getState().settings
 
-    // 停止语音识别
-    if (asrServiceType === 'browser') {
-      this.recognition?.stop()
-    } else if (asrServiceType === 'local' || asrServiceType === 'openai') {
-      ASRService.cancelRecording()
+      // 停止语音识别
+      if (asrServiceType === 'browser') {
+        try {
+          this.recognition?.stop();
+        } catch (error) {
+          console.error('停止浏览器语音识别时出错:', error);
+        }
+      } else if (asrServiceType === 'local' || asrServiceType === 'openai') {
+        try {
+          ASRService.cancelRecording();
+        } catch (error) {
+          console.error('取消ASR录音时出错:', error);
+        }
+      }
+
+      // 停止TTS
+      try {
+        if (this.ttsService.isCurrentlyPlaying()) {
+          this.ttsService.stop();
+        }
+      } catch (error) {
+        console.error('停止TTS播放时出错:', error);
+      }
+
+      // 重置状态
+      this.isRecording = false;
+      this.isPaused = false;
+      this.isProcessingResponse = false;
+      this._currentTranscript = '';
+      this._accumulatedTranscript = '';
+      this.conversationHistory = [];
+
+      // 清除录音超时定时器
+      if (this.recordingTimeout) {
+        clearTimeout(this.recordingTimeout);
+        this.recordingTimeout = null;
+      }
+
+      // 移除可能的事件监听器
+      window.removeEventListener('tts-state-change', this.handleTTSStateChange as EventListener);
+
+      // 通知UI更新状态
+      if (this.callbacks) {
+        this.callbacks.onListeningStateChange(false);
+        this.callbacks.onSpeakingStateChange(false);
+        this.callbacks.onTranscript('');
+        this.callbacks = null;
+      }
+
+      console.log('语音通话已结束');
+    } catch (error) {
+      console.error('结束语音通话时出错:', error);
     }
+  }
 
-    // 停止TTS
-    if (this.ttsService.isCurrentlyPlaying()) {
-      this.ttsService.stop()
-    }
-
-    this.callbacks = null
+  // TTS状态变化处理函数
+  private handleTTSStateChange = (event: CustomEvent) => {
+    const { isPlaying } = event.detail;
+    this.callbacks?.onSpeakingStateChange(isPlaying);
   }
 }
 
