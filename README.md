@@ -13,7 +13,7 @@
 
 Cherry Studio is a desktop client that supports for multiple LLM providers, available on Windows, Mac and Linux.
 
-👏 Join [Telegram Group](https://t.me/CherryStudioAI)｜[Discord](https://discord.gg/wez8HtpxqQ) | [QQ Group(472019156)](https://qm.qq.com/q/CbZiBWwCXu)
+👏此仓库为魔改版仓库
 
 ❤️ Like Cherry Studio? Give it a star 🌟 or [Sponsor](docs/sponsor.md) to support the development!
 
